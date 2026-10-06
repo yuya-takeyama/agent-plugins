@@ -20,10 +20,18 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
   const local = { get(k) { try { return JSON.parse(localStorage.getItem('cs:' + location.pathname + ':' + k)); } catch { return null; } },
                   set(k, v) { try { localStorage.setItem('cs:' + location.pathname + ':' + k, JSON.stringify(v)); } catch {} } };
   const timers = {};
+  const pending = new Map();
   function save(key, value, delay = 0) {
     clearTimeout(timers[key]);
-    timers[key] = setTimeout(() => { local.set(key, value); }, delay);
+    pending.delete(key);
+    if (!delay) { local.set(key, value); return; }
+    pending.set(key, value);
+    timers[key] = setTimeout(() => { pending.delete(key); local.set(key, value); }, delay);
   }
+  addEventListener('pagehide', () => {
+    for (const [key, value] of pending) { clearTimeout(timers[key]); local.set(key, value); }
+    pending.clear();
+  });
   for (const u of UNITS) { const v = local.get(`u:${u.id}`); if (v && typeof v === 'object') state.units[u.id] = clean(v); }
   { const r = local.get('resume'); if (r && byUnit.has(r.unit)) state.resume = r; }
   const st = (uid) => (state.units[uid] ||= { frac: 0, done: false, wrong: [] });
