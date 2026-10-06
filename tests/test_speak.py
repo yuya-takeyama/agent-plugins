@@ -97,6 +97,19 @@ class DockerTests(unittest.TestCase):
     def test_disconnected_engine_is_retryable(self,open_):
         with self.assertRaisesRegex(speak.SpeakError,'request failed'): speak.request('http://127.0.0.1:51021/version')
 
+    @patch.object(speak.urllib.request.OpenerDirector,'open',side_effect=ConnectionResetError(104,'Connection reset by peer'))
+    def test_connection_reset_is_retryable_during_readiness(self,open_):
+        with self.assertRaisesRegex(speak.SpeakError,'request failed'):
+            speak.request('http://127.0.0.1:51021/version')
+
+    @patch.object(speak.time,'sleep')
+    @patch.object(speak.urllib.request.OpenerDirector,'open',side_effect=[
+        ConnectionResetError(104,'Connection reset by peer'), io.BytesIO(json.dumps(speak.VERSION).encode())])
+    def test_readiness_recovers_after_connection_reset(self,open_,sleep):
+        speak.wait_ready('http://127.0.0.1:51021',1)
+        self.assertEqual(open_.call_count,2)
+        sleep.assert_called_once_with(0.5)
+
 
 class SynthesisTests(unittest.TestCase):
     def test_resolves_names_and_styles(self):
