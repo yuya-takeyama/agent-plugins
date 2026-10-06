@@ -58,5 +58,8 @@ Build intermediates, transcript, and captions remain beside the delivered file.
 
 The video format is an HTML player, not an MP4. Progress storage is best-effort
 localStorage with in-memory fallback. No Stash connection, API key, or cloud
-speech account is required. For optional character artwork see
+speech account is required. `zundamon-video` uses both standing characters,
+expressions, and lip sync by default; voice-only dialogue is an explicit option.
+The first dialogue build downloads the character sources into a local cache.
+For character artwork terms see
 [third-party notices](THIRD_PARTY_NOTICES.md).

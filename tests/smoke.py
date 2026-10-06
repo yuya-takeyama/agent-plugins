@@ -33,6 +33,14 @@ def run(kind,*args):
 
 video=work/'video'; shutil.copytree(SKILLS/'video/example',video)
 dialogue=work/'dialogue'; shutil.copytree(SKILLS/'zundamon-video/example',dialogue)
+with_art=os.environ.get('YES_SMOKE_CHARACTER_ART')=='1'
+if not with_art:
+    # Routine CI exercises the voice-only option without downloading external art.
+    script=dialogue/'script.json'
+    data=json.loads(script.read_text())
+    data['cast']=[{'id':'metan','speaker':'四国めたん','color':'#d9418c'},
+                  {'id':'zundamon','speaker':'ずんだもん','color':'#4f8a38'}]
+    script.write_text(json.dumps(data,ensure_ascii=False))
 slides=work/'slides.html'; shutil.copy(SKILLS/'slides/example.html',slides)
 quiz=work/'quiz.json'; shutil.copy(SKILLS/'quiz/example/quiz.json',quiz)
 run('quiz','build',quiz)
@@ -71,6 +79,9 @@ with sync_playwright() as pw:
             if name.startswith('video') or name in ('dialogue','course-bundle'):
                 page.keyboard.press('Space'); page.wait_for_timeout(800)
                 assert page.evaluate('document.querySelector("audio").currentTime')>0,(name,'audio did not advance')
+                if name=='dialogue' and with_art:
+                    assert page.locator('.ev-char').count()==2,'Both standing characters must render'
+                    page.wait_for_function('Array.from(document.querySelectorAll(".ev-char")).every(c=>getComputedStyle(c).visibility==="visible" && Array.from(c.querySelectorAll("img")).some(i=>!i.hidden && i.naturalWidth>0))')
                 page.keyboard.press('Space')
             if name=='slides':
                 page.keyboard.press('ArrowRight')

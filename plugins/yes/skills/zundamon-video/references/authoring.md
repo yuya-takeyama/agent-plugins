@@ -24,7 +24,7 @@ yes-speak --list-speakers                # every VOICEVOX character, style and i
 both characters, eight of the nine faces, two non-normal styles, quizzes,
 builds and SVG diagrams. Read its `script.json` and `scenes.html` before a first video.
 
-Needs Docker running, the bundled `../../bin/yes-speak`, `uv`, and Google Chrome for `shoot`. The example uses voice-only inline cast members. Optional string cast members fetch missing artwork; read the third-party notices before opting in.
+Needs Docker running, the bundled `../../bin/yes-speak`, `uv`, and Google Chrome for `shoot`. The example uses `"cast": ["metan", "zundamon"]`, which fetches missing artwork into the local cache. Read the third-party notices and source terms before use. Voice-only inline cast members are an explicitly requested alternative, not the default for this skill.
 
 ## Roles
 
@@ -171,7 +171,10 @@ with a cast.
 
 1. `lint` clean. Errors on unknown `who`, `face` or `style` stop the build.
 2. `build`; read its warnings (chars/sec, missing readings, long captions).
-3. `shoot`, plus `--at start` for scenes with `data-out`. Read every PNG:
+3. Play the actual page and confirm both standing characters are present, the
+   speaking mouth animates, and the chosen expressions change. The start overlay
+   may hide the cast, so inspect playback as well. Then `shoot`, plus `--at start`
+   for scenes with `data-out`. Read every PNG, including a mobile view:
    content hidden behind a character, overflow past the board, a caption
    over a diagram, tofu (□), a build that never appears, the wrong face.
 4. Listen to lines with readings, numbers or a non-normal style (`yes-speak
