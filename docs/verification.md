@@ -11,7 +11,18 @@ using deterministic test WAV audio. It exercises playback, slide navigation,
 answer feedback, course review and resume in a real Chrome browser at desktop
 and mobile widths. It rejects page errors, external resource requests, and
 horizontal document overflow. It writes screenshots to the printed temp path;
-inspect them before accepting visual changes. Tests do not fetch character art.
+inspect them before accepting visual changes. Routine CI explicitly selects the
+voice-only alternative so it does not depend on the external art download host.
+To check the default dialogue example with actual standing characters:
+
+```sh
+YES_SMOKE_CHARACTER_ART=1 uv run tests/smoke.py
+```
+
+This uses the character cache (or downloads missing art), checks that both
+characters have loaded visible layers during playback, and captures desktop and
+mobile views. Inspect those images for composition and play the page to verify
+lip sync and expression changes; layer-loading assertions do not establish these.
 
 For Linux CI without Chrome:
 

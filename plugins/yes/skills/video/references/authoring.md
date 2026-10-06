@@ -200,7 +200,7 @@ source, scale, base layers and faces: `normal smile surprised troubled jito
 panic think angry cry`, each with a `[closed, half, open]` mouth and a blink
 eye layer. `facing` (`left` / `right`) is the way the art looks as drawn,
 seen by the viewer; the player mirrors a character whose `facing` points away
-from the stage centre, so the two face each other. Third-party art is optional: use inline cast members for voice-only dialogue. Read ../../../THIRD_PARTY_NOTICES.md before choosing art. The PSDs and exported parts stay out of git; they are fetched into
+from the stage centre, so the two face each other. The `zundamon-video` skill uses both standing characters by default. Inline cast members are for requested voice-only dialogue or additional off-screen voices. Read ../../../THIRD_PARTY_NOTICES.md before using art. The PSDs and exported parts stay out of git; they are fetched into
 `~/.cache/video/characters/<id>/` (`EV_CHAR_CACHE`).
 
 ```bash
