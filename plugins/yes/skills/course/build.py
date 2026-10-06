@@ -201,8 +201,13 @@ def cmd_check(root: Path) -> None:
         expect("復習 (1)" in page.locator(".cs-acts").inner_text(), "home offers the review of 1 missed question")
         page.goto(f"{url}#review")
         page.wait_for_timeout(300)
-        page.locator("#cs-review .qz-q").first.locator(".qz-ch").nth(qs[0]["answer"]).click()
+        stored = page.evaluate("""({unit, answer}) => {
+            document.querySelectorAll('#cs-review .qz-q .qz-ch')[answer].click();
+            return JSON.parse(localStorage.getItem(`cs:${location.pathname}:u:${unit}`));
+        }""", {"unit": quiz_u["id"], "answer": qs[0]["answer"]})
         expect("全問正解" in page.locator("#cs-review .qz-result").inner_text(), "review clears the missed question")
+        expect(stored is not None and stored.get("wrong") == [] and stored.get("score") == len(qs) - 1,
+               "review result is saved before navigation")
         page.reload()
         page.goto(f"{url}#home")
         page.wait_for_timeout(400)
