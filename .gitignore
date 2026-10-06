@@ -1,0 +1,9 @@
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+**/out/
+.DS_Store
+*.wav
+*.m4a
+*.psd

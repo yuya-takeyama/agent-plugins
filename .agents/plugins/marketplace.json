@@ -1,0 +1,20 @@
+{
+  "name": "yuya-plugins",
+  "interface": {
+    "displayName": "Yuya’s Agent Plugins"
+  },
+  "plugins": [
+    {
+      "name": "yes",
+      "source": {
+        "source": "local",
+        "path": "./plugins/yes"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

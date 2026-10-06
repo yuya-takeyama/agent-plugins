@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "yes",
+  "version": "0.1.0",
+  "description": "Yuya’s Explainer Skills: portable HTML explanations, slides, quizzes, narrated videos and courses.",
+  "author": {
+    "name": "Yuya Takeyama"
+  },
+  "license": "MIT"
+}

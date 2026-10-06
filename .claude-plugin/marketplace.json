@@ -1,0 +1,16 @@
+{
+  "name": "yuya-plugins",
+  "owner": {
+    "name": "Yuya Takeyama"
+  },
+  "plugins": [
+    {
+      "name": "yes",
+      "source": "./plugins/yes",
+      "description": "Yuya\u2019s Explainer Skills"
+    }
+  ],
+  "metadata": {
+    "description": "Portable plugins by Yuya Takeyama"
+  }
+}

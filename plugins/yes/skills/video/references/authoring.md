@@ -1,0 +1,211 @@
+All commands and relative resource paths below are relative to the owning skill directory, one level above this reference. `<PLUGIN>` is the directory containing `plugin.json`.
+
+# video
+
+One video = a project dir with two files you write, built into one HTML
+file by `build.py`. The page plays like a video (audio drives the clock) but
+is HTML: no rendering step, fixes show up on the next build.
+
+```
+<project>/script.json   what is said, in chapters → scenes → lines
+<project>/scenes.html   what is shown: one <section class="scene"> per scene
+<project>/readings.json optional: {"表記": "よみ"} for this video
+```
+
+```sh
+S='/absolute/path/to/plugin/skills/video'
+uv run $S/build.py lint  <project>    # script checks, no audio (seconds)
+uv run $S/build.py build <project>    # audio (cached per sentence) → out/video.html
+uv run $S/build.py shoot <project>    # out/frames/<scene>.png, then LOOK at them
+uv run $S/build.py unit  <project> --id ai-video --out DIR   # unit bundle (course calls this)
+```
+
+A video can also be one unit of a course (lessons + 確認テスト + outline):
+that is `course`, which calls `build.py unit` for each video. Write
+the video the same way; in a course, prefix every chapter id, scene id and
+custom CSS class with the lesson id (`ai-c1`, `ai-1`, `.ai-flow`) because
+units share one page.
+
+`example/` is a short single-narrator example;
+read its `script.json` and `scenes.html` before a first video, or build it to
+try the pipeline.
+
+Needs Docker running, `uv`, and Google Chrome for `shoot`. The bundled speech wrapper is resolved automatically; it does not need to be on PATH. ffmpeg and BudouX come in through uv. Return `out/video.html` as a local artifact. Publishing is separate. Credit `VOICEVOX:ずんだもん` is
+shown in the 概要欄 under the player (with the chapter list); keep `"credit"`
+in the script.
+
+## Why it is built this way
+
+- **One clock.** Each sentence is synthesized separately, its real length is
+  measured, pauses are added, and the result is `out/timeline.json`.
+  Captions, scene builds, chapter bar and transcript all derive from it
+  (`out/unit.json` holds it). Never estimate timing from character counts.
+- **Display text ≠ spoken text.** `text` is what captions and the transcript
+  show; `reading` (or the readings dictionaries) is what is spoken. Any ASCII
+  word not covered is a lint warning: fix it, do not ignore it.
+- **Channels have separate jobs** (Mayer's redundancy principle: diagram +
+  voice + the same full text on screen hurts learning):
+  - voice: the logic (なぜ・だから). Name things; never 「これ」「ここ」「この図」.
+  - scene: the structure — what connects to what, what changes.
+  - on-screen text: keywords and labels only. Never the narration sentence.
+  - captions: the full narration, on a layer the viewer can switch off (C).
+  Two tests every video must pass: audio alone carries the argument; muted
+  scenes plus labels carry the structure.
+- **Recall beats fluency.** Clear videos make people feel they understood.
+  End chapters with a `quiz` — the question is narrated, a think pause runs
+  with a visible bar, then the answer is narrated. It works for listeners
+  who never look at the screen.
+
+## script.json
+
+```json
+{
+  "title": "…", "subtitle": "…", "credit": "VOICEVOX:ずんだもん", "speed": 1.0,
+  "chapters": [{
+    "id": "clock", "title": "時計はひとつ",
+    "scenes": [{"id": "clock-1", "lines": [
+      "1文ずつ音声を作ります。",
+      {"text": "画面に k8s と書いても", "reading": "がめんに クバネティスと かいても", "pause": 0.8}
+    ]}],
+    "quiz": {"q": "字幕のタイミングは何で決まる？", "a": "実測した音声の長さの時間表です。", "think": 4}
+  }]
+}
+```
+
+- A line is a string or `{text, reading?, pause?}`. Default pauses: 0.35 s
+  between lines, 0.9 s after a scene, 1.4 s after a chapter.
+- Scene ids match `data-scene` in scenes.html. Quiz scenes
+  (`<chapter>-quiz`) are generated; do not write sections for them.
+- Teach the substance: what the thing is and why it works that way, the
+  problem it solves, use cases, trade-offs, when to pick it over the
+  alternative. Never spend narration on meta — which lesson or category
+  covers what, how or when something was announced (event names, changelog
+  vs blog, release order), item counts. Beta/GA only in a few words where it
+  decides production use.
+- Writing rules (lint enforces the mechanical ones):
+  - です・ます, conversational. 25–40 chars per line, never over 60.
+  - Numbers in digits (`16回`, `3分から6分`) read fine; letters need readings.
+  - Roughly 300 chars ≈ 1 minute. A chapter is 3–6 minutes and one claim.
+  - Chapter shape: hook (question / surprise / common misconception) →
+    concrete example → mechanism, built up step by step → name it → pitfall
+    → one-sentence summary → quiz.
+  - Open the video with a misconception and resolve it later.
+
+### Dialogue (cast)
+
+A script with `"cast"` becomes a dialogue video (authoring guide:
+`zundamon-video`). Without it nothing below applies.
+
+```json
+{
+  "cast": ["metan", "zundamon", {"id": "tsumugi", "speaker": "春日部つむぎ", "color": "#e0a030"}],
+  "description": "概要欄に出す 2〜4 行の説明",
+  "chapters": [{"id": "c1", "title": "…", "scenes": [{"id": "c1-1", "lines": [
+    {"who": "zundamon", "text": "語れないなら黙るしかないのだ？", "face": "troubled"},
+    {"who": "metan", "text": "そう読むと誤解するわ。", "face": "smile", "style": "ツンツン"}
+  ]}], "quiz": {"q": "…", "a": "…", "q_who": "zundamon", "a_who": "metan"}}]
+}
+```
+
+- A string member has art in `characters/<id>.json`; an inline
+  `{"id", "speaker", "name"?, "color"?}` member speaks with captions but
+  draws nothing. `speaker` is the VOICEVOX character name.
+- `who` defaults to the previous line's speaker, then the first member;
+  `style` defaults to `ノーマル`; `face` sticks per character until that
+  character sets it again (first default `normal`). Quiz `q_who` / `a_who`
+  default to the first member.
+- Style names resolve to ids through `yes-speak --list-speakers --json`
+  (once per build); lines are synthesized with `--speaker <id>`. `lint`
+  errors on an unknown `who`, `face` or `style`, and warns when a caption
+  runs over two lines.
+- The page credits every voiced character and the art source itself
+  (`data.credits`); the script's `"credit"` is ignored.
+- `EV_TTS_CMD` replaces `yes-speak` (e.g. a fake for tests).
+  `uv run test_build.py` runs the build's unit tests.
+
+## scenes.html
+
+The stage is 1280×720. A scene's content box is **1152×536** (top bar and
+the bottom caption band are reserved — never draw there). Start with an
+optional `<style>` for video-specific CSS, then the sections:
+
+```html
+<section class="scene" data-scene="clock-1">
+  <h2 class="ev-h">1 文 = 1 つの音声ファイル</h2>
+  <div class="ev-card" data-at="1" data-focus="1,2">appears with line 1, ringed on lines 1–2</div>
+  <div data-at="0" data-out="3">visible for lines 0–2, gone from line 3</div>
+</section>
+```
+
+- `data-at="n"`: hidden until the scene's line n (0-based) starts. This is
+  how a picture builds in step with the sentence that explains it (temporal
+  contiguity). Elements without `data-at` show for the whole scene.
+- `data-out="n"`: hidden again from line n (for before → after swaps).
+  Without `data-at` it is visible from line 0.
+  Hidden elements keep their space; wrap the before and after in
+  `<div class="ev-stack">` so they occupy the same cell.
+- `data-focus="n,m"`: accent ring on those lines; other `data-focus`
+  siblings dim. Use it to point instead of saying 「ここ」.
+- Each section gets `data-line` (current line index) and CSS vars `--p`
+  (scene progress 0–1), `--lp` (current line progress), `--gp` (progress
+  through the pause after the line). Drive continuous motion from these,
+  e.g. a playhead `left: calc(var(--p) * 100%)`.
+- For anything CSS can't express: `<script>EV.on('clock-1', (el, c) => {…})</script>`
+  where `c = {t, line, lp, gp, p}`. Must be a pure function of `c` — the
+  page seeks, so no timers, no `Date.now()`, no randomness.
+- Kit classes: `ev-kicker ev-title ev-h ev-sub ev-label`, `ev-row ev-col
+  ev-grid-2/3/4 ev-center`, `ev-card` (+ `accent good warn bad`), `ev-pill`,
+  `ev-big`, `ev-code`, `ev-mark`, `ev-arrow`, text colors `ev-good ev-bad
+  ev-warn ev-accent ev-muted`. Color tokens `--accent --good --warn --bad
+  --muted --line --card` (+ `-soft`) switch with dark mode.
+- Visual rules: one idea per scene; show the mechanism, not a box with its
+  name; labels sit next to what they label; keep a concept's shape, color
+  and position stable across scenes; one accent color with a meaning; no
+  decoration or background music. Body text ≥ 22 px, labels ≥ 19 px.
+
+
+## Verify before publishing
+
+1. `lint` clean (or each warning consciously accepted).
+2. `build`; read its warnings (chars/sec on screen, missing readings).
+3. `shoot` (default `--at end` = every build of the scene visible, the
+   most crowded state; `--at start` too for scenes with `data-out`). Read
+   every PNG: overflow past the content box, overlap with the caption band,
+   tofu (□), clipped text, a build that never appears. Fix and repeat.
+4. Save lines with readings or numbers using `yes-speak 'text' -o line.wav`,
+   then listen to the WAV in an audio player. Wrong reading → add to
+   readings.json → rebuild (only that line is re-synthesized).
+5. Read the transcript (`out/transcript.md`) alone: does the argument stand
+   without the screen?
+
+Outputs besides the page: `out/captions.vtt`, `out/unit.json` (timeline),
+`out/transcript.md`, `out/unit/narration.m4a` — reusable for an mp4 later.
+Single videos default to 48 kbps audio (`"bitrate"` in script.json).
+
+## Page behavior (runtime, do not re-implement)
+
+Start screen with the goals (`"goals"` in script.json; no autoplay); the
+end screen offers a replay, plus whatever the host adds (a course adds the
+test and the next lesson). Space play/pause, ←/→ previous
+/next sentence, Shift+←/→ chapter, J/L ±5 s, C captions, T transcript,
+`<`/`>` speed 0.75–2×. Click a transcript sentence to jump. Deep links:
+`#t=12.3`, `#<chapter-id>` (inside a course: `#<unit-id>/t=12.3`).
+Pausing writes the position into the hash so a reload resumes there. On
+portrait phones captions move below the stage at readable size.
+
+## Character art (立ち絵)
+
+`characters/<id>.json` (`zundamon`, `metan`) defines each character's PSD
+source, scale, base layers and faces: `normal smile surprised troubled jito
+panic think angry cry`, each with a `[closed, half, open]` mouth and a blink
+eye layer. `facing` (`left` / `right`) is the way the art looks as drawn,
+seen by the viewer; the player mirrors a character whose `facing` points away
+from the stage centre, so the two face each other. Third-party art is optional: use inline cast members for voice-only dialogue. Read ../../../THIRD_PARTY_NOTICES.md before choosing art. The PSDs and exported parts stay out of git; they are fetched into
+`~/.cache/video/characters/<id>/` (`EV_CHAR_CACHE`).
+
+```bash
+uv run characters.py fetch metan            # download + MD5 check + export; no-op once cached
+uv run characters.py sheet metan -o s.png   # every face x mouth + blink, to look at
+```
+
+After editing a face, run `sheet` and look at it before building.

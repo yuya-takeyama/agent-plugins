@@ -1,0 +1,13 @@
+{
+  "name": "yuya-agent-plugins",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "check": "python3 scripts/validate.py"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11",
+    "happy-dom": "20.14.5"
+  }
+}

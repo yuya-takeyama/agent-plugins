@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm test
+      - run: python3 scripts/validate.py
+      - run: python3 -m unittest discover -s tests -v
+      - run: uv run plugins/yes/skills/video/test_build.py
+      - run: uv run --with playwright playwright install --with-deps chromium
+      - run: uv run tests/smoke.py
+        env:
+          YES_BROWSER_CHANNEL: ''
+  voicevox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: plugins/yes/bin/yes-speak '動作確認なのだ。' -o /tmp/yes-smoke.wav
+      - run: plugins/yes/bin/yes-speak --list-speakers --json > /tmp/yes-speakers.json
+      - if: always()
+        run: plugins/yes/bin/yes-speak --stop
