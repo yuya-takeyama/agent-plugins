@@ -81,7 +81,7 @@ def request(url: str, method: str = "GET", data: dict | None = None, *, audio: b
             if len(value) > limit:
                 raise SpeakError("VOICEVOX response is too large.")
             return value if audio else json.loads(value)
-    except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ValueError) as e:
+    except (urllib.error.URLError, http.client.HTTPException, ConnectionError, TimeoutError, ValueError) as e:
         raise SpeakError(f"VOICEVOX request failed: {e}") from e
 
 
