@@ -192,6 +192,18 @@ const visible = (root: Element, who: string, p: string) => {
 };
 
 describe('video unit with a cast', () => {
+  it('shows reuse conditions as text and rejects unsafe terms links', () => {
+    const { root } = mount({ usageTerms: { text: '<b>Reuse conditions</b>', links: [
+      { title: 'Voice terms', url: 'https://example.com/terms', note: 'Keep the credit' },
+      { title: 'Unsafe', url: 'javascript:alert(1)' },
+    ] } }, []);
+    const section = root.querySelector('.ev-desc-terms')!;
+    expect(section.textContent).toContain('<b>Reuse conditions</b>');
+    expect(section.querySelector('b')).toBeNull();
+    expect(section.querySelectorAll('a')).toHaveLength(1);
+    expect(section.querySelector('a')!.href).toBe('https://example.com/terms');
+    expect(section.textContent).toContain('Keep the credit');
+  });
   const lines: Line[] = [
     { id: 's1.0', scene: 's1', chapter: 'c1', idx: 0, text: 'めたんの台詞', start: 1, end: 3, who: 'metan', face: 'normal', mouth: '0'.repeat(15) + '2'.repeat(45),
       cues: [{ start: 1, end: 3, html: 'めたんの台詞' }] },

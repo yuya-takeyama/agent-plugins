@@ -34,6 +34,8 @@ def run(kind,*args):
 video=work/'video'; shutil.copytree(SKILLS/'video/example',video)
 script=json.loads((video/'script.json').read_text())
 script['sources']=[{'title':'Reference fixture','url':'https://example.com/reference','note':'Primary source'}]
+script['usageTerms']={'text':'Fixture reuse conditions: keep the credit.', 'links':[
+    {'title':'Audio terms fixture', 'url':'https://example.com/audio-terms'}]}
 (video/'script.json').write_text(json.dumps(script,ensure_ascii=False))
 dialogue=work/'dialogue'; shutil.copytree(SKILLS/'zundamon-video/example',dialogue)
 with_art=os.environ.get('YES_SMOKE_CHARACTER_ART')=='1'
@@ -98,6 +100,10 @@ with sync_playwright() as pw:
                 assert page.locator('.qz-why').first.is_visible()
             if name in ('video','video-bundle','course-bundle'):
                 assert page.locator('.ev-desc-sources a').first.get_attribute('href')=='https://example.com/reference'
+                assert page.locator('.ev-desc-terms a').first.get_attribute('href')=='https://example.com/audio-terms'
+                page.locator('.ev-desc summary').click()
+                assert page.locator('.ev-desc-terms').is_visible()
+                page.locator('.ev-desc summary').click()
             if name=='course-bundle':
                 video_box=page.locator('[data-unit="l1-video"]')
                 video_box.locator('audio').evaluate('a => { a.currentTime=a.duration-.15; a.play(); }')

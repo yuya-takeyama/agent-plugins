@@ -112,6 +112,41 @@ class DockerTests(unittest.TestCase):
 
 
 class SynthesisTests(unittest.TestCase):
+    @patch.object(speak, 'request')
+    def test_voice_specific_credits_and_terms(self, request):
+        request.return_value = [{'name': name, 'styles': [{'id': i, 'name': 'ノーマル'}]}
+                                for i, name in enumerate(['ずんだもん', 'もち子さん', 'Voidoll', 'ユーレイちゃん', '里石ユカ', '青山龍星', 'Unknown'])]
+        voices = speak.speakers('http://localhost')
+        self.assertEqual([v['credit'] for v in voices[:5]], [
+            'VOICEVOX:ずんだもん', 'VOICEVOX:もち子(cv 明日葉よもぎ)',
+            'VOICEVOX:Voidoll(CV:丹下桜)', 'VOICEVOX:ユーレイちゃん(CV:神崎零)', 'VOICEVOX:里石ユカ（つぼみ）'])
+        self.assertIn('sole proprietors', ' '.join(voices[5]['license_notes']))
+        self.assertTrue(voices[0]['credit_verified'])
+        self.assertFalse(voices[-1]['credit_verified'])
+        self.assertIn('Unlisted voice', ' '.join(voices[-1]['license_notes']))
+
+    @patch.object(speak, 'synthesize', return_value=wav_bytes())
+    @patch.object(speak, 'request', return_value=[{'name': 'もち子さん', 'styles': [{'id': 20, 'name': 'ノーマル'}]}])
+    @patch.object(speak, 'ensure_engine', return_value='http://localhost')
+    def test_wav_has_notice_and_existing_notice_is_protected(self, engine, request, synth):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'speech.wav'
+            notice = Path(str(path) + '.license.txt')
+            args = ['hello', '--speaker', '20', '-o', str(path)]
+            self.assertEqual(speak.main(args), 0)
+            self.assertEqual(path.read_bytes(), wav_bytes())
+            self.assertIn('VOICEVOX:もち子(cv 明日葉よもぎ)', notice.read_text())
+            self.assertIn('mochizora/', notice.read_text())
+            self.assertIn('引継ぎ', notice.read_text())
+            path.unlink()
+            notice.write_text('original')
+            engine.reset_mock()
+            self.assertEqual(speak.main(args), 1)
+            engine.assert_not_called()
+            self.assertEqual(notice.read_text(), 'original')
+            self.assertEqual(speak.main(args + ['--force']), 0)
+            self.assertIn('VOICEVOX:もち子', notice.read_text())
+
     def test_resolves_names_and_styles(self):
         available=[{'name':'ずんだもん','credit':'VOICEVOX:ずんだもん','styles':[{'id':3,'name':'ノーマル'}]}]
         self.assertEqual(speak.resolve_speaker('ずんだもん',available),(3,'VOICEVOX:ずんだもん'))

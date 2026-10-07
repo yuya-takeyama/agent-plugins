@@ -82,8 +82,20 @@ controls the engine readiness wait after Docker starts.
 
 `--stdin` accepts piped text. `--speed` accepts 0.5–2.0. Output is validated
 24000 Hz mono 16-bit WAV. Preserve the printed VOICEVOX credit when distributing
-audio and follow the selected character's terms. The command saves files and
+audio and follow the selected character's terms. Each WAV is accompanied by
+`<filename>.license.txt` containing its credit, terms links, and reuse conditions.
+`--force` applies to both files. Keep the companion with the WAV and display the
+credit in the listening context; audio-only delivery may need a spoken credit.
+The command saves files and
 does not automatically launch an audio player.
+
+`--list-speakers` includes the required credit, terms URL, and review notes;
+the JSON form also reports `credit_verified` against the pinned official list.
+This checks the credit lookup, not permission for your intended use. Before
+choosing a voice, check its current terms for your user type (personal, sole
+proprietor, or company), purpose, and streaming versus file distribution.
+Some uses need prior permission even without revenue. See
+[voice and artwork conditions](THIRD_PARTY_NOTICES.md).
 
 ## Examples
 

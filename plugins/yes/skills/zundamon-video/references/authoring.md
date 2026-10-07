@@ -145,6 +145,12 @@ Any other VOICEVOX character can join as a voice: an inline cast member
 `{"id": "tsumugi", "speaker": "春日部つむぎ", "color": "#e0a030"}`. It speaks
 with captions in its color and draws nothing, so give it a short role
 (a guest expert, a phone call). Its credit is added automatically.
+Before choosing it, read the voice's current terms from `yes-speak
+--list-speakers --json` (`terms_url` and `license_notes`). Check the user's
+status, purpose, and publication or downloadable-file format; credit alone is
+not permission. 青山龍星 can require prior permission even without revenue,
+and もち子 has additional conditions for corporate use and file distribution.
+See the plugin's [third-party notices](../../../THIRD_PARTY_NOTICES.md).
 
 ## Board layout
 
@@ -169,6 +175,10 @@ with a cast. Put primary references in `"sources"` as
 `[{"title": "…", "url": "https://…", "note": "optional"}]` so the
 description lists them as 出典 links. The sibling `video` builder validates
 these references before synthesizing speech.
+Keep the generated 音声・素材の利用条件 section with the output. It links voice
+and artwork terms and explains obligations when granting audio reuse; it does
+not grant reuse rights itself. HTML embeds extractable image layers, so do not
+describe its voice or artwork assets as MIT-licensed or freely reusable.
 
 ## Verify before publishing
 

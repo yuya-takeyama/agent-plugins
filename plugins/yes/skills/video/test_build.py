@@ -66,6 +66,36 @@ class ScenesHtmlTest(unittest.TestCase):
             '<div class="a" data-at="0" data-out="4"><p data-at="2" data-out="3">x</p><span>y</span></div>')
 
 
+class UsageTermsTest(unittest.TestCase):
+    def test_default_narrator_includes_terms_without_extra_engine_call(self):
+        with patch.dict(os.environ, {}, clear=True):
+            terms = build.terms_for({}, [], [], [])
+        self.assertIn('引継ぎ', terms['text'])
+        self.assertIn('https://zunko.jp/con_ongen_kiyaku.html', [link['url'] for link in terms['links']])
+
+    def test_dialogue_keeps_used_voice_and_art_terms(self):
+        cast = [{'id': 'm', 'speaker': 'もち子さん', 'char': {'source': {
+            'url': 'https://example.com/art', 'credit': 'Artist',
+            'terms': [{'title': 'Art terms', 'url': 'https://example.com/terms'}]}}}]
+        voices = [{'name': name, **build.voice_policy(name)} for name in ['もち子さん', 'ずんだもん']]
+        with patch.dict(os.environ, {}, clear=True):
+            terms = build.terms_for({}, cast, [{'who': 'm'}], voices)
+        urls = [link['url'] for link in terms['links']]
+        self.assertIn('https://vtubermochio.wixsite.com/mochizora/利用規約', urls)
+        self.assertIn('https://example.com/art', urls)
+        self.assertIn('https://example.com/terms', urls)
+        self.assertNotIn('https://zunko.jp/con_ongen_kiyaku.html', urls)
+
+    def test_custom_adapter_is_not_assumed_to_be_voicevox(self):
+        custom = {'text': 'Custom audio terms', 'links': [{'title': 'License', 'url': 'https://example.com/license'}]}
+        with patch.dict(os.environ, {'EV_TTS_CMD': 'custom'}):
+            self.assertEqual(build.terms_for({'usageTerms': custom}, [], [], []), custom)
+            self.assertEqual(build.terms_for({}, [], [], []), {})
+            for bad in (None, {'links': []}, {'text': 'Bad', 'links': [{'title': 'Bad', 'url': 'javascript:alert(1)'}]}):
+                with self.assertRaises(SystemExit):
+                    build.terms_for({'usageTerms': bad}, [], [], [])
+
+
 class FlattenTest(unittest.TestCase):
     SCRIPT = {"chapters": [
         {"id": "c1", "title": "t", "scenes": [{"id": "s1", "lines": [

@@ -10,7 +10,8 @@
     "password": "zunda",
     "md5": "cb6f503f901043b1c6edc4de274587c3",
     "psd": "ずんだもん立ち絵素材V3.2_基本版.psd",
-    "credit": "立ち絵: 坂本アヒル"
+    "credit": "立ち絵: 坂本アヒル",
+    "terms": [{"title": "東北ずん子・ずんだもんプロジェクト キャラクターガイドライン", "url": "https://zunko.jp/guideline.html"}]
   },
   "scale": 0.42,
   "base": ["!体"],
