@@ -1,0 +1,403 @@
+{
+  "title": "YES — 伝えたいことを、学べるHTMLに。",
+  "subtitle": "ずんだもんと四国めたんのプラグイン紹介",
+  "description": "YES（Yuya’s Explainer Skills）は、コーディングエージェントと一緒に解説・動画・クイズ・コースを作るプラグインです。\nこの紹介動画もYESで制作。音声、字幕、立ち絵を一つのHTMLにまとめています。",
+  "goals": [
+    "テーマと対象読者を伝えて、解説コンテンツの制作を始められる"
+  ],
+  "cast": [
+    "metan",
+    "zundamon"
+  ],
+  "speed": 1.0,
+  "sources": [
+    {
+      "title": "YES: installation, skills, and requirements",
+      "url": "https://github.com/yuya-takeyama/agent-plugins/tree/main/plugins/yes"
+    },
+    {
+      "title": "Claude Code artifacts: publishing and page constraints (checked 2026-10-07)",
+      "url": "https://code.claude.com/docs/en/artifacts"
+    },
+    {
+      "title": "Claude Artifacts: sharing options (checked 2026-10-07)",
+      "url": "https://support.claude.com/en/articles/9547008-share-artifacts"
+    },
+    {
+      "title": "ChatGPT Sites: creating and publishing (checked 2026-10-07)",
+      "url": "https://help.openai.com/en/articles/20001339-creating-and-using-chatgpt-sites"
+    }
+  ],
+  "chapters": [
+    {
+      "id": "yes",
+      "title": "伝えたいことを、学べるHTMLに",
+      "scenes": [
+        {
+          "id": "yes-intro",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "troubled",
+              "text": "めたん、説明を書いたのに、読んでもらえないのだ。"
+            },
+            {
+              "who": "metan",
+              "face": "jito",
+              "text": "長文を渡しただけで、伝わったつもりになってない？"
+            },
+            {
+              "who": "zundamon",
+              "face": "panic",
+              "text": "ボクの力作、読む前から閉じられたのだ！"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "そんなときは、例と会話で学べる形にしてみましょう。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "YESは、エージェントと解説コンテンツを作るプラグインよ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "動画を作るなら、編集ソフトも覚えるのだ？"
+            }
+          ]
+        },
+        {
+          "id": "yes-formats",
+          "lines": [
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "この掛け合いも、ブラウザーで再生するHTMLなの。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "台本に合わせて、音声も字幕も、口の動きも付くわ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "surprised",
+              "text": "ボクたちの会話まで、ひとつのファイルになるのだ！"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "読む解説やスライド、理解を確かめるクイズも作れるの。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "動画とクイズを組み合わせれば、自分のペースで学べるコースよ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "説明を見たあと、自分で答えて確かめられるのだ。"
+            }
+          ]
+        },
+        {
+          "id": "yes-example",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "でも、難しい説明を、そのまま読み上げるだけなのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "伝える相手に合わせて、説明の入り口も変えるのよ。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "例えば、パスワードの使い回しなら、鍵のたとえから始めるわ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "家も自転車も、同じ鍵で開くような感じなのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "鍵がひとつ漏れたら、別の場所まで開いてしまうでしょう。"
+            },
+            {
+              "who": "zundamon",
+              "face": "surprised",
+              "text": "ひとつのサービスの問題が、ほかにも広がるのだ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "ただし、たとえと現実が違う部分も説明することが大切ね。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "身近な例から理由へ進み、最後に正確な言葉でまとめるの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "用語を知っている人だけの説明にしない、ということなのだ。"
+            }
+          ]
+        },
+        {
+          "id": "yes-choose",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "じゃあ、説明は全部ずんだもん動画にするのだ！"
+            },
+            {
+              "who": "metan",
+              "face": "jito",
+              "text": "全部にボクを出して、で決めないの。目的で選びましょう。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "自分のペースで読み返すなら、文章と図の解説が向いているわ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "発表で、順番に話を見せたいならスライドなのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "そうね。よくある勘違いをほどくなら、掛け合いも役立つわ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "学んだあとに判断できるかは、クイズで確かめられるの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "見た気になるだけじゃなく、自分で考える出番を作るのだ。"
+            }
+          ]
+        },
+        {
+          "id": "yes-course",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "動画とクイズなら、別々に渡してもいいのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "コースにまとめると、学ぶ順番や進み具合も一緒に扱えるわ。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "最初は短い解説、そのあとに確認問題、という流れを作るの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "例えば、鍵のたとえを見てから、危ない行動を選ぶ問題なのだ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "そうよ。正解だけでなく、なぜそうなるかも説明するの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "間違えた理由までわかれば、次の場面で判断できそうなのだ。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "一度に詰め込みすぎず、小さく学んで、小さく確かめるのね。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "読む人のペースに合わせた、学びの道順を作るのだ。"
+            }
+          ]
+        },
+        {
+          "id": "yes-install",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "YESは、いつものコーディングエージェントで使えるのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "Claude CodeやCodexに、プラグインとして入れられるわ。",
+              "reading": "クロードコードや、コーデックスに、プラグインとして入れられるわ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "Claude Codeなら、まずマーケットプレイスを追加するの。",
+              "reading": "クロードコードなら、まず、マーケットプレイスを追加するの。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "次にYESをインストールして、使いたいスキルを呼び出してね。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "Codexでは、プラグインを選ぶ画面から入れるのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "ええ。操作手順と必要な準備は、YESのREADMEにまとまっているわ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "準備ができたら、何を誰に伝えるかをお願いするのだ。"
+            }
+          ]
+        },
+        {
+          "id": "yes-request",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "最初は、エージェントに何をお願いするのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "プラグインを入れたら、使うスキルを選んで依頼してね。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "テーマと、誰に伝えたいかを、身近な言葉で渡すの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "例えば、新入生に、パスワードの使い回しを説明して、なのだ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "掛け合い動画と確認クイズにして、と形式も伝えるといいわ。"
+            }
+          ]
+        },
+        {
+          "id": "yes-review",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "できあがったら、すぐみんなに見せていいのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "まず、自分で再生して、説明の内容と読み方を確かめましょう。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "名前や略語の読みがおかしければ、読み方を指定して直せるわ。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "字幕が小さすぎないか、立ち絵に隠れていないかも見るのだ。"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "そう。出典や、音声と立ち絵のクレジットも一緒に確認してね。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "作ることと公開することは別だから、届け先はあとで選べるの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "説明の中身を磨いてから、相手に合う場所へ渡すのだ！"
+            }
+          ]
+        },
+        {
+          "id": "yes-deliver",
+          "lines": [
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "できた解説は、どこで公開するのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "smile",
+              "text": "おすすめは、Claude ArtifactsやChatGPT Sitesよ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "HTMLをもとに、公開するページにして、と頼むの。"
+            },
+            {
+              "who": "zundamon",
+              "face": "think",
+              "text": "リンクを作ったら、みんなが見られるのだ？"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "共有範囲は自分で選んでね。プランや組織の設定でも変わるわ。"
+            },
+            {
+              "who": "metan",
+              "face": "normal",
+              "text": "公開先でも、音声と表示、見る人が開けるかを確かめましょう。"
+            },
+            {
+              "who": "zundamon",
+              "face": "smile",
+              "text": "届けたい相手に、ちゃんと伝わるところまで確認するのだ！"
+            }
+          ]
+        }
+      ],
+      "quiz": {
+        "q": "初めて依頼するとき、テーマのほかに何を伝える？",
+        "a": "誰に向けて、どんな形式で伝えたいか、なのだ。",
+        "q_who": "metan",
+        "a_who": "zundamon",
+        "think": 3
+      }
+    }
+  ]
+}

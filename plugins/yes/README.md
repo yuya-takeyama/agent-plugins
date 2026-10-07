@@ -13,6 +13,20 @@ The default output is one self-contained HTML file. Builders can optionally
 separate embedded media into an HTML + assets bundle. Publication is always a
 separate task.
 
+## See YES in action
+
+[![Zundamon and Metan explain YES in a widescreen video](../../docs/previews/yes-intro.png)](../../docs/previews/yes-intro.mp4)
+
+**[Watch or download the full introduction (MP4)](https://github.com/yuya-takeyama/agent-plugins/raw/refs/heads/main/docs/previews/yes-intro.mp4)**
+— 5:13, Japanese dialogue, 1280 × 720 with audio and captions.
+Made with `yes:zundamon-video`: standing characters, expressions, and lip sync
+come from the actual generated HTML player. The MP4 captures the complete lesson.
+
+[Source and reproduction steps](../../docs/examples/yes-intro/README.md).
+Audio: VOICEVOX:ずんだもん / VOICEVOX:四国めたん. Artwork: 坂本アヒル.
+The demo's voice and artwork retain their own
+[terms](../../docs/previews/NOTICE.md); they are not covered by YES's MIT license.
+
 ## Installation
 
 ### Claude Code
@@ -56,6 +70,34 @@ Codex is format-level until listed as tested in [compatibility](../../docs/compa
   `YES_BROWSER_CHANNEL=''` after installing its browser runtime.
 - First-time package/image downloads require network access. Generated single
   HTML files use system fonts and embedded media and work offline.
+
+## Recommended places to share
+
+We recommend **Claude Artifacts** when working in Claude, or **ChatGPT Sites**
+when working in ChatGPT/Codex with Sites available. Give the agent the generated
+HTML and ask it to prepare a shareable page, preserve the media and credits,
+and preview it before sharing. YES creates the files; hosting is a separate step
+and may need adaptation for the destination.
+
+- **Claude Artifacts:** ask Claude to publish the single HTML as an artifact,
+  then select its audience in **Share**. In Claude Code, artifacts are single
+  pages with a **16 MiB rendered-page limit**; adjacent assets and relative file
+  links do not work, so use YES's single-file output rather than its bundle.
+  Availability and external sharing depend on your account and organization.
+  See [Claude Code artifacts](https://code.claude.com/docs/en/artifacts) and
+  [sharing options](https://support.claude.com/en/articles/9547008-share-artifacts).
+- **ChatGPT Sites:** in Work on ChatGPT web, or Work/Codex in the desktop app,
+  ask to build a website from the HTML (or mention `@Sites`). Review the preview,
+  then choose the audience and publish. Public access requires **Anyone on the
+  internet** to be available and selected. Sites is in public beta; availability
+  and publishing permissions depend on the plan, rollout, and workspace settings.
+  See [Creating and using ChatGPT Sites](https://help.openai.com/en/articles/20001339-creating-and-using-chatgpt-sites).
+
+Checked against official documentation on **2026-10-07**. Test playback,
+interactions, and access as an intended viewer after publishing. Do not assume
+a sharing link is anonymous access: Anthropic's general sharing guide and Claude
+Code documentation currently differ on sign-in requirements. Hosting these
+examples on either service is not part of the repository's automated tests.
 
 ## Local speech command
 

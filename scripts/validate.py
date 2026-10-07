@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 import re
+import struct
 
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
@@ -35,7 +36,22 @@ for base in (ROOT/'plugins',ROOT/'docs'):
     if not base.exists(): continue
     for path in base.rglob('*'):
         if not path.is_file() or '__pycache__' in path.parts or 'out' in path.parts: continue
-        expect(path.suffix not in ('.psd','.wav','.m4a','.png'),f'{path}: generated/third-party media in source')
+        if path.suffix in ('.psd', '.wav', '.m4a', '.png', '.mp4'):
+            # Only reviewed, composed documentation previews may contain third-party art/audio.
+            preview = path.relative_to(ROOT).as_posix()
+            allowed = {'docs/previews/yes-intro.png', 'docs/previews/yes-intro.mp4'}
+            expect(preview in allowed, f'{path}: generated/third-party media in source')
+            if preview in allowed:
+                with path.open('rb') as media:
+                    header = media.read(24)
+                expect(path.stat().st_size <= 25 * 1024 * 1024, f'{path}: preview exceeds 25 MiB')
+                if path.suffix == '.png':
+                    expect(len(header) == 24 and header[:8] == b'\x89PNG\r\n\x1a\n'
+                           and struct.unpack('>II', header[16:24]) == (1280, 720),
+                           f'{path}: expected a 1280x720 PNG preview')
+                else:
+                    expect(header[4:8] == b'ftyp', f'{path}: expected an MP4 preview')
+            continue
         text=path.read_text()
         expect('stash.yuyat' not in text and 'voicevox.yuyat' not in text,f'{path}: owner-specific service dependency')
         expect(not any(s in text for s in ('stash-diagramming','stash-dataviz','stash-design')),f'{path}: excluded skill reference')

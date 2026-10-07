@@ -37,8 +37,11 @@ delivery, see the [VOICEVOX credit FAQ](https://voicevox.hiroshiba.jp/qa/).
 
 The bundled character definitions describe layer selections for 坂本アヒル's
 ずんだもん and 四国めたん artwork. Source URLs are recorded in
-`skills/video/characters/*.json` within the YES plugin. No PSD, exported PNG,
-or generated HTML containing that art is distributed by this repository.
+`skills/video/characters/*.json` within the YES plugin. No PSD, individual PNG
+layers, or generated HTML containing that art is distributed by this repository.
+The repository's `docs/previews/yes-intro.png` and `yes-intro.mp4` are composed
+demonstration works containing the characters, with credits and their own media
+notice. Their embedded voice and artwork are not licensed under YES's MIT license.
 
 The zundamon-video example uses standing artwork by default. String cast members
 enable automatic download into the user's cache. Before using the artwork,

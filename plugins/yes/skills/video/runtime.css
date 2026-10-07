@@ -169,7 +169,8 @@
 /* the overlay's antialiased bottom row would otherwise let the figures tint the stage edge */
 .ev-stage:has(> .ev-over:not([hidden])) .ev-char { visibility: hidden; }
 .ev-cast .ev-cap { left: 270px; right: 270px; bottom: 16px; }
-.ev-cap-in { display: grid; max-width: 740px; }
+/* Isolate thick text strokes so Chromium clears their full ink bounds on cue changes. */
+.ev-cap-in { display: grid; max-width: 740px; will-change: transform; }
 .ev-cap-in > span { grid-area: 1 / 1; }
 .ev-cast .ev-cap span { background: none; padding: 0; border-radius: 0; max-width: none; color: var(--who, #fff); font-family: "M PLUS Rounded 1c", var(--font); font-weight: 800; font-size: 34px; line-height: 1.38;
   -webkit-text-stroke: 6px #fff; paint-order: stroke fill; }
