@@ -36,5 +36,6 @@ jobs:
           python-version: '3.12'
       - run: plugins/yes/bin/yes-speak '動作確認なのだ。' -o /tmp/yes-smoke.wav
       - run: plugins/yes/bin/yes-speak --list-speakers --json > /tmp/yes-speakers.json
+      - run: python3 tests/check_voicevox_metadata.py /tmp/yes-speakers.json /tmp/yes-smoke.wav.license.txt
       - if: always()
         run: plugins/yes/bin/yes-speak --stop

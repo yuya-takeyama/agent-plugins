@@ -18,6 +18,9 @@ import urllib.parse
 import urllib.request
 import wave
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from voice_licenses import SUPPORTED_VOICES, audio_notice, voice_policy
+
 VERSION = "0.25.2"
 IMAGE = "voicevox/voicevox_engine:cpu-ubuntu24.04-0.25.2"
 CONTAINER = "yes-voicevox-0-25-2"
@@ -132,21 +135,23 @@ def stop_engine() -> None:
 
 
 def speakers(url: str) -> list[dict]:
-    result = request(url + "/speakers")
+    result = [speaker for speaker in request(url + "/speakers") if speaker["name"] in SUPPORTED_VOICES]
     for speaker in result:
         speaker["styles"] = [dict(style, type=style.get("type", "talk")) for style in speaker["styles"]
                              if style.get("type", "talk") == "talk"]
-        speaker["credit"] = "VOICEVOX:" + speaker["name"]
+        speaker.update(voice_policy(speaker["name"]))
     return result
 
 
 def resolve_speaker(value: str, available: list[dict]) -> tuple[int, str]:
     name, _, style_name = value.partition("/")
     for speaker in available:
+        if speaker["name"] not in SUPPORTED_VOICES:
+            continue
         for style in speaker["styles"]:
             if str(style["id"]) == value or (speaker["name"] == name and style["name"] == (style_name or "ノーマル")):
                 return style["id"], speaker["credit"]
-    raise SpeakError(f"Unknown talk speaker/style {value!r}; run --list-speakers.")
+    raise SpeakError(f"Unsupported speaker/style {value!r}; YES supports only ずんだもん and 四国めたん. Run --list-speakers.")
 
 
 def validate_wav(data: bytes) -> None:
@@ -192,7 +197,7 @@ def main(argv=None) -> int:
     parser.add_argument("text", nargs="?")
     parser.add_argument("--text", dest="explicit_text")
     parser.add_argument("--stdin", action="store_true")
-    parser.add_argument("--speaker", default="3", help="Talk style ID or character/style name")
+    parser.add_argument("--speaker", default="3", help="ずんだもん or 四国めたん: talk style ID or character/style name")
     parser.add_argument("--speed", type=float, default=1.0)
     parser.add_argument("--output", "-o", type=Path)
     parser.add_argument("--force", action="store_true")
@@ -218,7 +223,8 @@ def main(argv=None) -> int:
         if args.list_speakers:
             available = speakers(ensure_engine(args.startup_timeout))
             print(json.dumps(available, ensure_ascii=False) if args.json else "\n".join(
-                f"{style['id']}\t{sp['name']}/{style['name']}\t{sp['credit']}" for sp in available for style in sp['styles']))
+                f"{style['id']}\t{sp['name']}/{style['name']}\t{sp['credit']}\t{sp['terms_url']}\t{' '.join(sp['license_notes'])}"
+                for sp in available for style in sp['styles']))
             return 0
         if sum((args.text is not None, args.explicit_text is not None, args.stdin)) != 1:
             raise SpeakError("Supply exactly one text argument, --text, or --stdin.")
@@ -229,12 +235,22 @@ def main(argv=None) -> int:
             raise SpeakError("--speed must be between 0.5 and 2.")
         if args.output is None:
             raise SpeakError("Specify --output FILE.wav.")
-        if args.output.exists() and not args.force:
-            raise SpeakError(f"Output exists: {args.output}; use --force to replace it.")
+        notice_path = args.output.with_name(args.output.name + ".license.txt")
+        for path in (args.output, notice_path):
+            if path.exists() and not args.force:
+                raise SpeakError(f"Output exists: {path}; use --force to replace it.")
         url = ensure_engine(args.startup_timeout)
-        speaker, credit = resolve_speaker(args.speaker, speakers(url))
-        save_audio(args.output, synthesize(url, text, speaker, args.speed), args.force)
+        available = speakers(url)
+        speaker, credit = resolve_speaker(args.speaker, available)
+        selected = next(sp for sp in available if any(style["id"] == speaker for style in sp["styles"]))
+        for note in selected["license_notes"]:
+            print(f"{note} {selected['terms_url']}", file=sys.stderr)
+        audio = synthesize(url, text, speaker, args.speed)
+        # Write the notice first so a successful audio write has its terms alongside it.
+        save_audio(notice_path, audio_notice(selected).encode("utf-8"), args.force)
+        save_audio(args.output, audio, args.force)
         print(credit, file=sys.stderr)
+        print(f"License notice: {notice_path}", file=sys.stderr)
         print(args.output)
         return 0
     except (SpeakError, OSError, ValueError, KeyError, TypeError) as error:

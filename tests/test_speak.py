@@ -112,11 +112,56 @@ class DockerTests(unittest.TestCase):
 
 
 class SynthesisTests(unittest.TestCase):
+    @patch.object(speak, "request")
+    def test_only_supported_voices_are_listed_or_resolved(self, request):
+        request.return_value = [{"name": name, "styles": [{"id": i, "name": "ノーマル"}]}
+                                for i, name in enumerate(["ずんだもん", "四国めたん", "春日部つむぎ"])]
+        voices = speak.speakers("http://localhost")
+        self.assertEqual([v["name"] for v in voices], ["ずんだもん", "四国めたん"])
+        self.assertEqual([v["credit"] for v in voices], ["VOICEVOX:ずんだもん", "VOICEVOX:四国めたん"])
+        self.assertTrue(all(v["terms_url"] == "https://zunko.jp/con_ongen_kiyaku.html" for v in voices))
+        for value in ("春日部つむぎ", "2"):
+            with self.assertRaises(speak.SpeakError):
+                speak.resolve_speaker(value, voices)
+
+    @patch.object(speak, 'synthesize', return_value=wav_bytes())
+    @patch.object(speak, 'request', return_value=[{'name': '四国めたん', 'styles': [{'id': 2, 'name': 'ノーマル'}]}])
+    @patch.object(speak, 'ensure_engine', return_value='http://localhost')
+    def test_wav_has_notice_and_existing_notice_is_protected(self, engine, request, synth):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'speech.wav'
+            notice = Path(str(path) + '.license.txt')
+            args = ['hello', '--speaker', '2', '-o', str(path)]
+            self.assertEqual(speak.main(args), 0)
+            self.assertEqual(path.read_bytes(), wav_bytes())
+            self.assertIn('VOICEVOX:四国めたん', notice.read_text())
+            self.assertIn('zunko.jp/con_ongen_kiyaku.html', notice.read_text())
+            self.assertIn('引継ぎ', notice.read_text())
+            path.unlink()
+            notice.write_text('original')
+            engine.reset_mock()
+            self.assertEqual(speak.main(args), 1)
+            engine.assert_not_called()
+            self.assertEqual(notice.read_text(), 'original')
+            self.assertEqual(speak.main(args + ['--force']), 0)
+            self.assertIn('VOICEVOX:四国めたん', notice.read_text())
+
     def test_resolves_names_and_styles(self):
         available=[{'name':'ずんだもん','credit':'VOICEVOX:ずんだもん','styles':[{'id':3,'name':'ノーマル'}]}]
         self.assertEqual(speak.resolve_speaker('ずんだもん',available),(3,'VOICEVOX:ずんだもん'))
         self.assertEqual(speak.resolve_speaker('3',available)[0],3)
         with self.assertRaises(speak.SpeakError): speak.resolve_speaker('unknown',available)
+
+    @patch.object(speak, 'synthesize')
+    @patch.object(speak, 'request', return_value=[{'name': '春日部つむぎ', 'styles': [{'id': 8, 'name': 'ノーマル'}]}])
+    @patch.object(speak, 'ensure_engine', return_value='http://localhost')
+    def test_unsupported_names_and_ids_never_synthesize(self, engine, request, synth):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / 'speech.wav'
+            for name in ('春日部つむぎ', '8'):
+                self.assertEqual(speak.main(['hello', '--speaker', name, '-o', str(output)]), 1)
+            synth.assert_not_called()
+            self.assertEqual(list(Path(folder).iterdir()), [])
 
     @patch.object(speak,'request')
     def test_synthesis_sets_speed_and_pcm_contract(self,request):

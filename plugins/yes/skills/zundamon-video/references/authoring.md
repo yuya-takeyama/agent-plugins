@@ -139,12 +139,13 @@ sharp ツッコミ or a ツンデレ compliment, ささやき / ヒソヒソ for
 「ここだけの話」. Never on a line that explains: the odd styles are harder to
 follow.
 
-### Extra voices without art
+### Supported voices
 
-Any other VOICEVOX character can join as a voice: an inline cast member
-`{"id": "tsumugi", "speaker": "春日部つむぎ", "color": "#e0a030"}`. It speaks
-with captions in its color and draws nothing, so give it a short role
-(a guest expert, a phone call). Its credit is added automatically.
+The cast supports only ずんだもん and 四国めたん, including their talk styles.
+Do not add other VOICEVOX characters. Inline cast members are available for the
+explicit voice-only mode using these same two voices. Before publishing, check
+their shared voice terms and the separate artwork conditions in the plugin’s
+[third-party notices](../../../THIRD_PARTY_NOTICES.md).
 
 ## Board layout
 
@@ -163,12 +164,16 @@ The 立ち絵 cover the board's bottom corners from about y 375 down
 
 Never draw credits on the board. The page's 概要欄 under the player lists
 every VOICEVOX character that actually spoke (`VOICEVOX:四国めたん`,
-`VOICEVOX:ずんだもん`, and any extra voice) plus `立ち絵: 坂本アヒル`, built
+`VOICEVOX:ずんだもん`) plus `立ち絵: 坂本アヒル`, built
 from the cast. Write a 2–4 line `"description"` for it; `"credit"` is ignored
 with a cast. Put primary references in `"sources"` as
 `[{"title": "…", "url": "https://…", "note": "optional"}]` so the
 description lists them as 出典 links. The sibling `video` builder validates
 these references before synthesizing speech.
+Keep the generated 音声・素材の利用条件 section with the output. It links voice
+and artwork terms and explains obligations when granting audio reuse; it does
+not grant reuse rights itself. HTML embeds extractable image layers, so do not
+describe its voice or artwork assets as MIT-licensed or freely reusable.
 
 ## Verify before publishing
 

@@ -82,8 +82,18 @@ controls the engine readiness wait after Docker starts.
 
 `--stdin` accepts piped text. `--speed` accepts 0.5–2.0. Output is validated
 24000 Hz mono 16-bit WAV. Preserve the printed VOICEVOX credit when distributing
-audio and follow the selected character's terms. The command saves files and
+audio and follow the selected character's terms. Each WAV is accompanied by
+`<filename>.license.txt` containing its credit, terms links, and reuse conditions.
+`--force` applies to both files. Keep the companion with the WAV and display the
+credit in the listening context; audio-only delivery may need a spoken credit.
+The command saves files and
 does not automatically launch an audio player.
+
+YES supports only **ずんだもん** and **四国めたん**, including their talk styles.
+`--list-speakers` lists only these two voices with their credits and terms URL.
+Other voices are rejected by name and style ID. Both supported voices share the
+[SSS voice terms](https://zunko.jp/con_ongen_kiyaku.html); character and artwork
+rights remain separate. See [voice and artwork conditions](THIRD_PARTY_NOTICES.md).
 
 ## Examples
 

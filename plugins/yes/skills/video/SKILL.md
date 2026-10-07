@@ -38,3 +38,8 @@ Run `lint`, then `build`, then `shoot`, and inspect every scene screenshot.
 The screenshot command uses installed Chrome; `YES_BROWSER_CHANNEL=''` selects
 Playwright Chromium instead. Review pronunciation and the standalone transcript.
 Keep VOICEVOX credits in the generated page.
+Read [voice and artwork conditions](../../THIRD_PARTY_NOTICES.md) before
+selecting a voice or distributing its output. Preserve the generated usage
+terms in the description. With `EV_TTS_CMD`, supply the adapter's actual
+`usageTerms: {text, links: [{title, url, note}]}` in script.json along with its
+credit; these are displayed without assuming the custom engine is VOICEVOX.

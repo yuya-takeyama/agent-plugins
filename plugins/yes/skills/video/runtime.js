@@ -197,6 +197,21 @@ function mountCast(stage, cast) {
     const ul = el('ul', 'ev-desc-credits'); for (const c of credits) ul.append(el('li', null, c));
     descBody.append(el('h3', null, 'クレジット'), ul);
   }
+  const terms = data.usageTerms;
+  if (terms && typeof terms.text === 'string' && terms.text) {
+    const section = el('section', 'ev-desc-terms');
+    section.append(el('h3', null, '音声・素材の利用条件'), el('p', null, terms.text));
+    const ul = el('ul');
+    for (const link of Array.isArray(terms.links) ? terms.links : []) {
+      if (!link || typeof link.title !== 'string' || typeof link.url !== 'string') continue;
+      try { if (!['http:', 'https:'].includes(new URL(link.url).protocol)) continue; } catch { continue; }
+      const a = el('a', null, link.title); a.href = link.url; a.target = '_blank'; a.rel = 'noopener';
+      const li = el('li'); li.append(a);
+      if (typeof link.note === 'string' && link.note) li.append(el('p', null, link.note));
+      ul.append(li);
+    }
+    section.append(ul); descBody.append(section);
+  }
   desc.append(descSum, descBody);
   const audio = new Audio(); audio.preload = 'metadata'; audio.src = data.audio;
   root.append(viewport, capOut, controls, desc, tr, audio);

@@ -44,6 +44,7 @@ import imageio_ffmpeg
 SKILL_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SKILL_DIR.parents[1] / "scripts"))
 from output import export
+from voice_licenses import SUPPORTED_VOICES, usage_notice, voice_policy
 # shared across projects: a course rebuild reuses every sentence its lessons already synthesized
 TTS_CACHE = Path(os.environ.get("EV_TTS_CACHE", Path.home() / ".cache" / "yes" / "tts"))
 TTS_WORKERS = int(os.environ.get("EV_TTS_WORKERS", "4"))
@@ -99,6 +100,9 @@ def load_cast(script: dict) -> list[dict]:
             if not (raw.get("id") and raw.get("speaker")):
                 die(f"inline cast member needs id and speaker: {raw!r}")
             cast.append({"id": raw["id"], "name": raw.get("name", raw["speaker"]), "speaker": raw["speaker"], "color": raw.get("color")})
+    for member in cast:
+        if member["speaker"] not in SUPPORTED_VOICES:
+            die("YES supports only ずんだもん and 四国めたん in the cast.")
     return cast
 
 
@@ -254,7 +258,11 @@ def list_speakers() -> list[dict]:
     r = subprocess.run([*tts_cmd(), "--list-speakers", "--json"], capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip() or f"exit {r.returncode}")
-    return json.loads(r.stdout)
+    result = [sp for sp in json.loads(r.stdout) if sp["name"] in SUPPORTED_VOICES]
+    if not os.environ.get("EV_TTS_CMD"):
+        for speaker in result:
+            speaker.update(voice_policy(speaker["name"]))
+    return result
 
 
 def style_ids(speakers: list[dict]) -> dict[tuple[str, str], int]:
@@ -281,6 +289,24 @@ def narration_credit(script: dict) -> str:
     if os.environ.get("EV_TTS_CMD"):
         die('A single-narrator script using EV_TTS_CMD needs a nonempty "credit".')
     return "VOICEVOX:ずんだもん"
+
+
+def terms_for(script: dict, cast: list[dict], lines: list[dict], speakers: list[dict]) -> dict:
+    art = [m["char"].get("source", {}) for m in cast if "char" in m]
+    if os.environ.get("EV_TTS_CMD"):
+        terms = script.get("usageTerms", usage_notice([], art) if art else {})
+    else:
+        used = {m["speaker"] for m in cast if any(ln["who"] == m["id"] for ln in lines)}
+        voiced = [sp for sp in speakers if sp["name"] in used] if cast else [
+            {"name": "ずんだもん", **voice_policy("ずんだもん")}]
+        terms = usage_notice(voiced, art)
+    if not isinstance(terms, dict) or not isinstance(terms.get("text", ""), str):
+        die("usageTerms must be an object with text and optional links.")
+    if terms and not terms.get("text", "").strip():
+        die("usageTerms.text must not be empty.")
+    if errs := source_errors(terms.get("links", [])):
+        die("usageTerms: " + "\n".join(errs))
+    return terms
 
 
 # ---------- synthesis ----------
@@ -517,6 +543,7 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         speaker_of = {m["id"]: m["speaker"] for m in cast}
         for ln in lines:
             ln["style_id"] = styles[(speaker_of[ln["who"]], ln["style"])]
+    terms = terms_for(script, cast, lines, speakers)
     out.mkdir(parents=True, exist_ok=True)
     wavs = synth(lines, readings, TTS_CACHE, float(script.get("speed", 1.0)))
     timed = assemble(lines, wavs, out / "narration.raw.wav")
@@ -554,6 +581,10 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         data["credit"] = credit
     if script.get("sources"):
         data["sources"] = [{k: s[k] for k in ("title", "url", "note") if s.get(k)} for s in script["sources"]]
+    if not cast and not os.environ.get("EV_TTS_CMD"):
+        # A custom attribution must not replace the bundled narrator's required credit.
+        data["credits"] = list(dict.fromkeys([voice_policy("ずんだもん")["credit"], credit]))
+    data["usageTerms"] = terms
     data.update(timeline=tl, audio="data:audio/mp4;base64," + base64.b64encode((out / "narration.m4a").read_bytes()).decode())
     unit = {
         "id": uid, "kind": "video", "title": script.get("title", uid), "duration": duration,
