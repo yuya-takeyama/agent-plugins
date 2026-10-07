@@ -16,7 +16,10 @@ for catalog in ('.claude-plugin/marketplace.json','.agents/plugins/marketplace.j
         manifest=json.loads((folder/'plugin.json').read_text())
         claude=json.loads((folder/'.claude-plugin/plugin.json').read_text())
         expect(manifest['name']==entry['name']==claude['name'],f'{catalog}: plugin names differ')
-        expect(manifest['version']==claude['version'],f'{folder}: versions differ')
+        expect(manifest['version']==claude['version'],
+               f'{folder.relative_to(ROOT)}: plugin versions differ: '
+               f'plugin.json={manifest["version"]!r}, '
+               f'.claude-plugin/plugin.json={claude["version"]!r}')
         names=[]
         for skill in (folder/'skills').iterdir():
             text=(skill/'SKILL.md').read_text()

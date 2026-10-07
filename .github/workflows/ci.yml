@@ -17,9 +17,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.12'
+      - name: Validate plugin versions and catalogs
+        run: python3 scripts/validate.py
       - run: npm ci
       - run: npm test
-      - run: python3 scripts/validate.py
       - run: python3 -m unittest discover -s tests -v
       - run: uv run plugins/yes/skills/video/test_build.py
       - run: uv run --with playwright playwright install --with-deps chromium
