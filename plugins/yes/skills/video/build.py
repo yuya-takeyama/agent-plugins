@@ -34,6 +34,7 @@ import sys
 import tempfile
 import time
 import wave
+from urllib.parse import urlsplit
 from array import array
 from pathlib import Path
 
@@ -200,6 +201,28 @@ def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> li
         if "who" in ln and len(caption_chunks(t)) > 2:
             warns.append(f"{ln['id']}: caption runs over 2 lines; split the sentence")
     return warns
+
+
+def source_errors(sources: object) -> list[str]:
+    """Reject malformed references before starting speech synthesis."""
+    if not isinstance(sources, list):
+        return ['sources: must be a list of {"title", "url"}']
+    errs = []
+    for i, source in enumerate(sources):
+        if not isinstance(source, dict) or not isinstance(source.get("title"), str) or not source["title"].strip():
+            errs.append(f"sources[{i}]: needs a nonempty title")
+            continue
+        url = source.get("url")
+        try:
+            parsed = urlsplit(url) if isinstance(url, str) else None
+            valid = parsed is not None and parsed.scheme in ("http", "https") and bool(parsed.hostname)
+        except ValueError:
+            valid = False
+        if not valid:
+            errs.append(f"sources[{i}]: url must be an absolute http(s) URL")
+        if "note" in source and not isinstance(source["note"], str):
+            errs.append(f"sources[{i}]: note must be a string")
+    return errs
 
 
 def cast_errors(lines: list[dict], cast: list[dict], styles: dict | None) -> list[str]:
@@ -478,6 +501,8 @@ def quiz_section(scene_id: str, timed: list[dict]) -> str:
 def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
     """Synthesize, time and caption the video; write the unit bundle to `out` and return unit.json."""
     script, readings, cast, lines = load_project(root)
+    if errs := source_errors(script.get("sources", [])):
+        die("\n".join(errs))
     credit = narration_credit(script) if not cast else None
     speakers: list[dict] = []
     if cast:
@@ -527,6 +552,8 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
                     description=script.get("description", ""))
     else:
         data["credit"] = credit
+    if script.get("sources"):
+        data["sources"] = [{k: s[k] for k in ("title", "url", "note") if s.get(k)} for s in script["sources"]]
     data.update(timeline=tl, audio="data:audio/mp4;base64," + base64.b64encode((out / "narration.m4a").read_bytes()).decode())
     unit = {
         "id": uid, "kind": "video", "title": script.get("title", uid), "duration": duration,
@@ -574,6 +601,8 @@ def standalone_page(unit_dir: Path) -> str:
 
 def cmd_lint(root: Path) -> None:
     script, readings, cast, lines = load_project(root)
+    if errs := source_errors(script.get("sources", [])):
+        die("\n".join(errs))
     if not cast:
         narration_credit(script)
     chars = sum(len(ln["text"]) for ln in lines)

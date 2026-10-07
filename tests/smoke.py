@@ -32,6 +32,9 @@ def run(kind,*args):
     subprocess.run([sys.executable,str(SKILLS/kind/'build.py'),*map(str,args)],env=env,check=True)
 
 video=work/'video'; shutil.copytree(SKILLS/'video/example',video)
+script=json.loads((video/'script.json').read_text())
+script['sources']=[{'title':'Reference fixture','url':'https://example.com/reference','note':'Primary source'}]
+(video/'script.json').write_text(json.dumps(script,ensure_ascii=False))
 dialogue=work/'dialogue'; shutil.copytree(SKILLS/'zundamon-video/example',dialogue)
 with_art=os.environ.get('YES_SMOKE_CHARACTER_ART')=='1'
 if not with_art:
@@ -47,7 +50,10 @@ run('quiz','build',quiz)
 run('video','build',video,'--format','bundle')
 run('video','build',dialogue)
 course=work/'course'; course.mkdir()
-(course/'course.json').write_text(json.dumps({'id':'smoke','title':'Smoke course','lessons':[{'id':'l1','title':'Learn','summary':'A lesson','units':[{'kind':'video','src':str(video)},{'kind':'slides','src':str(slides)},{'kind':'quiz','src':str(quiz)}]}]}))
+(course/'course.json').write_text(json.dumps({'id':'smoke','title':'Smoke course','lessons':[
+    {'id':'l1','title':'Learn','summary':'A lesson','units':[{'kind':'video','src':str(video)},{'kind':'quiz','src':str(quiz)}]},
+    {'id':'l2','title':'Review','summary':'Another lesson','units':[{'kind':'slides','src':str(slides)},{'kind':'quiz','src':str(quiz)}]},
+]}))
 run('course','build',course,'--format','bundle')
 run('course','check',course)
 
@@ -90,6 +96,35 @@ with sync_playwright() as pw:
             if name=='quiz':
                 page.locator('.qz-ch').first.click()
                 assert page.locator('.qz-why').first.is_visible()
+            if name in ('video','video-bundle','course-bundle'):
+                assert page.locator('.ev-desc-sources a').first.get_attribute('href')=='https://example.com/reference'
+            if name=='course-bundle':
+                video_box=page.locator('[data-unit="l1-video"]')
+                video_box.locator('audio').evaluate('a => { a.currentTime=a.duration-.15; a.play(); }')
+                end=video_box.locator('.ev-end'); end.wait_for(state='visible')
+                assert end.locator('h1').inner_text()=='次は確認テスト'
+                assert 'ev-counting' in end.get_attribute('class')
+                page.screenshot(path=str(work/f'course-end-{width}.png'))
+                if width==390:
+                    assert end.evaluate('e=>e.parentElement.classList.contains("ev-video")')
+                    assert end.locator('.ev-end-go').bounding_box()['height']>=44
+                    end.get_by_role('button',name='とどまる',exact=True).click()
+                    page.wait_for_timeout(10500)
+                    assert page.evaluate('location.hash').startswith('#l1-video')
+                    end.locator('.ev-end-go').click()
+                else:
+                    page.wait_for_function('location.hash==="#l1-quiz"',timeout=15000)
+                page.wait_for_function('location.hash==="#l1-quiz"')
+                for uid in ('l1-quiz','l2-quiz'):
+                    page.evaluate('(id)=>location.hash=id',uid)
+                    box=page.locator(f'[data-unit="{uid}"]'); box.wait_for(state='visible')
+                    for i,q in enumerate(json.loads(quiz.read_text())['questions']):
+                        box.locator('.qz-q').nth(i).locator('.qz-ch').nth(q['answer']).click()
+                    if uid=='l1-quiz':
+                        box.locator('.qz-act.primary').click()
+                        page.wait_for_function('location.hash==="#l2-slides"')
+                    else:
+                        assert box.locator('.qz-act.primary').count()==0,'Last unit must not loop to itself'
             assert not errors,(name,errors)
             assert not external,(name,external)
             assert not missing,(name,missing)

@@ -70,8 +70,14 @@ Unit ids default to `<lesson>-<kind>` (`ai-video`, `ai-quiz`). The lesson's
   a drawer behind ☰ 目次.
 - Nothing is locked. A video unit is done once 85 % of it was actually
   played (seeking does not count); a slides unit once its last step was
-  reached; a quiz unit once it was taken; a lesson once all its units are done. A video's end screen leads to the next unit
-  (確認テストへ) or lesson; a quiz's leads to the next lesson or back to the video.
+  reached; a quiz unit once it was taken; a lesson once all its units are done.
+- A video followed by its lesson's quiz ends on 「次は確認テスト」 with
+  the question count and a large button. An untaken quiz opens after 10 seconds;
+  「とどまる」, a key, or a pointer interaction cancels that countdown.
+  A taken quiz shows its previous score and never opens automatically.
+  Completed videos lead 続きから to the untaken quiz, and the home and outline
+  mark it 「▶ 次は確認テスト」. A quiz's end leads to the next lesson
+  or back to the video.
 - Review: one quiz over every missed question, labelled with its lesson;
   answering one right removes it from the missed list (the lesson's score
   stays as first taken).

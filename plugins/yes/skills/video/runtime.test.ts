@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runtimeJs = readFileSync(path.join(__dirname, 'runtime.js'), 'utf8');
 
@@ -160,7 +160,13 @@ const art = (id: string): Cast => ({
            troubled: { layers: ['!目/*基本'], mouth: ['!口/*む', '!口/*半', '!口/*開'], blink: '!目/*閉じ' } },
 });
 
-function mount(extra: Record<string, unknown>, lines: Line[]) {
+const mountedUnits: Unit[] = [];
+afterEach(() => {
+  for (const unit of mountedUnits.splice(0)) unit.hide();
+  vi.useRealTimers();
+});
+
+function mount(extra: Record<string, unknown>, lines: Line[], host: Record<string, unknown> = {}) {
   document.body.innerHTML = '<div class="su-unit" data-unit="u"><section class="scene" data-scene="s1"></section></div>';
   const root = document.querySelector('.su-unit')!;
   const data = {
@@ -172,7 +178,9 @@ function mount(extra: Record<string, unknown>, lines: Line[]) {
   const unit = win().YESUnits.kinds.video(root, data, {
     saved: null, setRest() {}, progress() {}, position() {}, complete() {}, result() {}, endActions: () => [],
     prefs: { get: () => null, set() {} },
+    ...host,
   });
+  mountedUnits.push(unit);
   return { root, unit };
 }
 const shown = (root: Element, who: string) =>
@@ -235,6 +243,15 @@ describe('video unit with a cast', () => {
     expect(root.querySelector('.ev-tr')!.textContent).not.toContain('VOICEVOX');
   });
 
+  it('links sources in the 概要欄 and drops non-http urls', () => {
+    ({ root } = mount({ cast: [art('metan'), art('zundamon')], sources: [
+      { title: '原典', url: 'https://example.com/a', note: '一次情報' },
+      { title: 'だめ', url: 'javascript:alert(1)' }] }, lines));
+    const links = [...root.querySelectorAll('.ev-desc-sources a')] as HTMLAnchorElement[];
+    expect(links.map((a) => [a.textContent, a.href, a.target, a.rel])).toEqual([['原典', 'https://example.com/a', '_blank', 'noopener']]);
+    expect(root.querySelector('.ev-desc-sources .ev-desc-note')!.textContent).toBe('一次情報');
+  });
+
   it('seeks to a chapter from the 概要欄', () => {
     unit.show('t=5&shot');
     (root.querySelector('.ev-desc-ch button') as HTMLButtonElement).click();
@@ -252,5 +269,62 @@ describe('video unit without a cast', () => {
     expect(root.querySelector('.ev-cap > span')!.innerHTML).toBe('台詞');
     expect([...root.querySelectorAll('.ev-desc-credits li')].map((l) => l.textContent)).toEqual(['VOICEVOX:ずんだもん']);
     expect(root.querySelector('.ev-stage')!.textContent).not.toContain('VOICEVOX');
+  });
+});
+
+describe('video end actions', () => {
+  const lines: Line[] = [{ id: 's1.0', scene: 's1', chapter: 'c1', idx: 0, text: 'A', start: 0, end: 10, cues: [] }];
+  beforeEach(() => {
+    document.documentElement.classList.remove('ev-shot');
+    vi.useFakeTimers();
+  });
+
+  function finish(auto: number | undefined = 10) {
+    const run = vi.fn();
+    const { root, unit } = mount({}, lines, { endActions: () => [
+      { label: '確認テストに挑戦する →', primary: true, title: '次は確認テスト', note: '3 問', auto, run },
+      { label: 'ホーム', run: vi.fn() },
+    ] });
+    unit.show('t=1');
+    root.querySelector('audio')!.dispatchEvent(new Event('ended'));
+    return { root, unit, run };
+  }
+
+  it('features the host headline and opens the quiz once after ten seconds', () => {
+    const { root, run } = finish();
+    expect(root.querySelector('.ev-end h1')!.textContent).toBe('次は確認テスト');
+    expect(root.querySelector('.ev-end-note')!.textContent).toBe('3 問');
+    expect(root.querySelectorAll('.ev-end-go')).toHaveLength(1);
+    expect(root.querySelector('.ev-end-links')!.textContent).toContain('もう一度見る');
+    vi.advanceTimersByTime(9999);
+    expect(run).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(10001);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['stay', 'key', 'modified-key', 'pointer', 'hide'])('cancels automatic navigation on %s', (input) => {
+    const { root, unit, run } = finish();
+    if (input === 'stay') (root.querySelector('.ev-end-count button') as HTMLButtonElement).click();
+    if (input === 'key') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
+    if (input === 'modified-key') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
+    if (input === 'pointer') root.querySelector('.ev-controls')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    if (input === 'hide') unit.hide();
+    vi.advanceTimersByTime(11000);
+    expect(run).not.toHaveBeenCalled();
+    expect(root.querySelector('.ev-end')!.classList.contains('ev-counting')).toBe(false);
+  });
+
+  it('does not start a countdown when the host disables auto', () => {
+    const { root, run } = finish(0);
+    expect(root.querySelector('.ev-end-count')!.textContent).toBe('');
+    vi.advanceTimersByTime(11000);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('does not run a second time after the main button is clicked', () => {
+    const { root, run } = finish();
+    (root.querySelector('.ev-end-go') as HTMLButtonElement).click();
+    vi.advanceTimersByTime(11000);
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });

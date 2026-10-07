@@ -185,8 +185,11 @@ Single videos default to 48 kbps audio (`"bitrate"` in script.json).
 ## Page behavior (runtime, do not re-implement)
 
 Start screen with the goals (`"goals"` in script.json; no autoplay); the
-end screen offers a replay, plus whatever the host adds (a course adds the
-test and the next lesson). Space play/pause, ←/→ previous
+end screen features the host's primary action, with optional `title`, `note`,
+and `auto` (seconds until it runs). A key or pointer interaction cancels the
+countdown; the viewer can also choose 「とどまる」. Replay and other actions
+remain available. Portrait phones show this screen outside the scaled stage
+so its buttons remain readable. Space play/pause, ←/→ previous
 /next sentence, Shift+←/→ chapter, J/L ±5 s, C captions, T transcript,
 `<`/`>` speed 0.75–2×. Click a transcript sentence to jump. Deep links:
 `#t=12.3`, `#<chapter-id>` (inside a course: `#<unit-id>/t=12.3`).

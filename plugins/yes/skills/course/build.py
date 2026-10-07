@@ -79,7 +79,10 @@ def cmd_build(root: Path) -> None:
             d = unit["data"]
             if u["kind"] == "video":
                 # the lesson, not the video script, names what the learner sees
-                d.update(kicker=f"レッスン {i} / {n}", title=les["title"], goals=les.get("goals", d.get("goals", [])), endTitle=f"レッスン {i} 完了")
+                d.update(kicker=f"レッスン {i} / {n}", title=les["title"], goals=les.get("goals", d.get("goals", [])))
+                # A following quiz or other unit still belongs to this lesson.
+                if u is les["units"][-1]:
+                    d["endTitle"] = f"レッスン {i} 完了"
             if u["kind"] == "quiz":
                 d["title"] = d.get("title") or f"確認テスト: {les['title']}"
             unit_data[u["id"]] = d
@@ -210,6 +213,7 @@ def cmd_check(root: Path) -> None:
                "review result is saved before navigation")
         page.reload()
         page.goto(f"{url}#home")
+        page.wait_for_selector(".cs-cards")
         page.wait_for_timeout(400)
         expect("復習" not in page.locator(".cs-acts").inner_text() and f"{len(qs) - 1}/{len(qs)}" in page.locator(".cs-cards").inner_text(),
                "results survive a reload")
@@ -252,6 +256,26 @@ def cmd_check(root: Path) -> None:
         page.locator(".cs-side-title").click()
         page.wait_for_timeout(600)
         expect(page.evaluate("location.hash") == "#home" and "続きから" in page.locator(".cs-acts").inner_text(), "home offers 続きから after watching")
+        pair = next(((a, q) for les in info["lessons"] for a, q in zip(les["units"], les["units"][1:])
+                     if a["kind"] == "video" and q["kind"] == "quiz"), None)
+        if pair:
+            vid, quiz_next = pair
+            page.goto(f"{url}#{vid['id']}")
+            box = page.locator(f'.su-unit[data-unit="{vid["id"]}"]')
+            box.wait_for(state="visible")
+            page.wait_for_function("id => { const a = document.querySelector(`[data-unit=\"${id}\"] audio`); return a && Number.isFinite(a.duration); }", arg=vid["id"])
+            box.evaluate("u => { const a = u.querySelector('audio'); a.currentTime = Math.max(0, a.duration - 0.3); a.play(); }")
+            end = box.locator(".ev-end")
+            end.wait_for(state="visible")
+            primary = end.locator(".ev-end-go")
+            expect("確認テスト" in end.locator("h1").inner_text(), "the video does not declare the lesson complete before its quiz")
+            expect(end.evaluate("e => e.classList.contains('ev-counting')") == (quiz_u is None or quiz_next["id"] != quiz_u["id"]),
+                   "only an untaken quiz starts a countdown")
+            expect(primary.count() == 1 and "確認テスト" in primary.inner_text(), "a video's end leads to its lesson's quiz")
+            if primary.count() == 1:
+                primary.click()
+                page.wait_for_timeout(300)
+                expect(page.evaluate("location.hash") == f"#{quiz_next['id']}", "the end button opens the quiz")
     expect(not errors, f"no page errors {errors[:3]}")
     b.close()
     pw.stop()

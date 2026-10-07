@@ -41,11 +41,20 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
   // ---------- unit instances, created on first visit ----------
   const instances = new Map();
   let current = null;   // uid or '_review'
+  // UNITS holds copies ({...u, lesson}), so look units up by id, never by identity
   function nextOf(u) {
-    const i = u.lesson.units.indexOf(u);
-    if (u.lesson.units[i + 1]) return u.lesson.units[i + 1];
+    const sib = u.lesson.units, i = sib.findIndex((x) => x.id === u.id);
+    if (sib[i + 1]) return byUnit.get(sib[i + 1].id);
     const nl = LESSONS[LESSONS.indexOf(u.lesson) + 1];
-    return nl ? nl.units[0] : null;
+    return nl ? byUnit.get(nl.units[0].id) : null;
+  }
+  const quizOpen = (q) => q.kind === 'quiz' && state.units[q.id]?.score == null;
+  // a video just watched, its lesson's quiz still untaken: the next step is the quiz, so it gets the headline
+  function quizStep(n) {
+    const count = DATA.unitData[n.id]?.questions?.length || 0, s = state.units[n.id];
+    if (s?.score != null) return { label: '確認テストをもう一度 →', primary: true, title: '確認テストで仕上げ', note: `前回 ${s.score} / ${s.total}`, run: () => go(`#${n.id}`) };
+    return { label: '確認テストに挑戦する →', primary: true, title: '次は確認テスト',
+             note: `${count ? count + ' 問 ・ ' : ''}選ぶだけ ・ 見た直後に解くと記憶に残ります`, auto: 10, run: () => go(`#${n.id}`) };
   }
   function hostFor(u) {
     return {
@@ -57,9 +66,9 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
       result(r) { const s = st(u.id); Object.assign(s, { score: r.score, total: r.total, wrong: r.wrong }); save(`u:${u.id}`, s); refresh(); },
       endActions() {
         const acts = [], n = nextOf(u);
-        if (n && n.lesson === u.lesson) acts.push({ label: n.kind === 'quiz' ? '確認テストへ →' : '次へ →', primary: true, run: () => go(`#${n.id}`) });
+        if (n && n.lesson === u.lesson) acts.push(n.kind === 'quiz' ? quizStep(n) : { label: '次へ →', primary: true, run: () => go(`#${n.id}`) });
         else if (n) acts.push({ label: '次のレッスンへ →', primary: true, run: () => go(`#${n.id}`) });
-        if (u.kind === 'quiz' && u.lesson.units[0] !== u) acts.push({ label: '動画を見直す', run: () => go(`#${u.lesson.units[0].id}`) });
+        if (u.kind === 'quiz' && u.lesson.units[0].id !== u.id) acts.push({ label: '動画を見直す', run: () => go(`#${u.lesson.units[0].id}`) });
         acts.push({ label: 'コースのトップへ', run: () => go('#home') });
         return acts;
       },
@@ -107,7 +116,10 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
   function badge(u) {
     const s = state.units[u.id];
     if (u.kind === 'quiz') {
-      if (s?.score == null) return el('span', 'cs-badge none', 'テスト未受験');
+      if (s?.score == null) {
+        const ready = byUnit.get(u.id).lesson.units.every((x) => x.id === u.id || x.kind === 'quiz' || state.units[x.id]?.done);
+        return ready ? el('span', 'cs-badge next', '▶ 次は確認テスト') : el('span', 'cs-badge none', 'テスト未受験');
+      }
       return s.score === s.total ? el('span', 'cs-badge crown', `★ 全問正解 ${s.score}/${s.total}`) : el('span', 'cs-badge part', `テスト ${s.score}/${s.total}`);
     }
     if (s?.done) return el('span', 'cs-badge done', '✓ 視聴済み');
@@ -151,10 +163,16 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
     head.append(el('p', null, `${LESSONS.length} レッスン ・ 合計 ${Math.round(total / 60)} 分 ・ 完了 ${LESSONS.filter(lessonDone).length} / ${LESSONS.length}`));
     box.append(head);
     const acts = el('div', 'cs-acts');
-    const r = state.resume && byUnit.get(state.resume.unit);
+    let r = state.resume && byUnit.get(state.resume.unit), rest = state.resume?.rest || '';
+    if (r && state.units[r.id]?.done) {
+      const n = nextOf(r), quiz = n && n.lesson === r.lesson && quizOpen(n);
+      if (quiz) { r = n; rest = ''; }
+    }
     const firstOpen = LESSONS.find((l) => !lessonDone(l));
-    const main = el('button', 'cs-act primary', r ? `続きから: ${r.lesson.title}` : firstOpen ? `はじめる: ${firstOpen.title}` : '最初から見直す');
-    main.addEventListener('click', () => go(r ? `#${r.id}${state.resume.rest ? '/' + state.resume.rest : ''}` : `#${(firstOpen || LESSONS[0]).id}`));
+    const label = r ? (quizOpen(r) && !rest ? `続きから: 確認テスト(${r.lesson.title})` : `続きから: ${r.lesson.title}`)
+                    : firstOpen ? `はじめる: ${firstOpen.title}` : '最初から見直す';
+    const main = el('button', 'cs-act primary', label);
+    main.addEventListener('click', () => go(r ? `#${r.id}${rest ? '/' + rest : ''}` : `#${(firstOpen || LESSONS[0]).id}`));
     acts.append(main);
     const wrong = wrongItems().length;
     if (wrong) { const rb = el('button', 'cs-act', `間違えた問題を復習 (${wrong})`); rb.addEventListener('click', () => go('#review')); acts.append(rb); }
