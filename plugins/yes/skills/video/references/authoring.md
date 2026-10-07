@@ -98,7 +98,7 @@ A script with `"cast"` becomes a dialogue video (authoring guide:
 
 ```json
 {
-  "cast": ["metan", "zundamon", {"id": "tsumugi", "speaker": "春日部つむぎ", "color": "#e0a030"}],
+  "cast": ["metan", "zundamon"],
   "description": "概要欄に出す 2〜4 行の説明",
   "chapters": [{"id": "c1", "title": "…", "scenes": [{"id": "c1-1", "lines": [
     {"who": "zundamon", "text": "語れないなら黙るしかないのだ？", "face": "troubled"},
@@ -109,7 +109,8 @@ A script with `"cast"` becomes a dialogue video (authoring guide:
 
 - A string member has art in `characters/<id>.json`; an inline
   `{"id", "speaker", "name"?, "color"?}` member speaks with captions but
-  draws nothing. `speaker` is the VOICEVOX character name.
+  draws nothing. `speaker` must be ずんだもん or 四国めたん. Other voices
+  are rejected before synthesis, including through a custom adapter.
 - `who` defaults to the previous line's speaker, then the first member;
   `style` defaults to `ノーマル`; `face` sticks per character until that
   character sets it again (first default `normal`). Quiz `q_who` / `a_who`

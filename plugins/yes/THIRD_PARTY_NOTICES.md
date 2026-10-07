@@ -13,22 +13,16 @@ voices, character assets, or generated speech rights.
 - Default Zundamon / Metan voice terms: https://zunko.jp/con_ongen_kiyaku.html
 
 The engine image is downloaded from its publisher by Docker; it is not bundled
-in this repository. Display the selected voice's required credit with generated
-speech; some voices require a CV name, not just `VOICEVOX:<character name>`.
-The default voice is ずんだもん. The engine source, core, models, and container
-dependencies have separate licenses; the image as a whole is not MIT.
+in this repository. YES supports only **ずんだもん** and **四国めたん**,
+including their talk styles. Other engine voices are neither listed nor accepted
+by name or style ID. The official image contains additional voices, but YES does
+not expose them.
 
-`scripts/voicevox_voices.json` records credits and terms links from the pinned
-engine's official list and the bundled 雨晴はう policy (whose current terms URL
-is recorded separately), checked on 2026-10-07. It is a lookup aid, not a complete
-review or permanent permission for every voice. Check each voice's current terms
-for the user type, purpose, and publication/distribution format before use.
-For example, [青山龍星](https://www.virvoxproject.com/voicevoxの利用規約)
-requires prior application and permission for companies, sole proprietors, and
-individuals contracted by companies, even without revenue.
-[もち子](https://vtubermochio.wixsite.com/mochizora/利用規約) has additional
-conditions for corporate involvement, audio works/materials, games, and file
-distribution. Generated credits alone do not establish permission.
+Display `VOICEVOX:ずんだもん` and/or `VOICEVOX:四国めたん` for the voices
+actually used. Both voices share the SSS voice-library terms linked above; check
+their current conditions for the intended use. Character and artwork rights are
+separate from voice rights. The engine source, core, models, and container
+dependencies also have separate licenses; the image as a whole is not MIT.
 
 If you authorize someone else to use generated audio, require them to comply with
 the voice-library terms and to impose the same obligations when authorizing

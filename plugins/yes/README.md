@@ -89,13 +89,11 @@ credit in the listening context; audio-only delivery may need a spoken credit.
 The command saves files and
 does not automatically launch an audio player.
 
-`--list-speakers` includes the required credit, terms URL, and review notes;
-the JSON form also reports `credit_verified` against the pinned official list.
-This checks the credit lookup, not permission for your intended use. Before
-choosing a voice, check its current terms for your user type (personal, sole
-proprietor, or company), purpose, and streaming versus file distribution.
-Some uses need prior permission even without revenue. See
-[voice and artwork conditions](THIRD_PARTY_NOTICES.md).
+YES supports only **ずんだもん** and **四国めたん**, including their talk styles.
+`--list-speakers` lists only these two voices with their credits and terms URL.
+Other voices are rejected by name and style ID. Both supported voices share the
+[SSS voice terms](https://zunko.jp/con_ongen_kiyaku.html); character and artwork
+rights remain separate. See [voice and artwork conditions](THIRD_PARTY_NOTICES.md).
 
 ## Examples
 

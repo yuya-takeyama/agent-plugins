@@ -20,7 +20,8 @@ Read [the dialogue authoring guide](references/authoring.md), then the sibling
 them using `../video/build.py`. Read the bundled example before your first video.
 
 Use `"cast": ["metan", "zundamon"]` by default: めたん stands on the left,
-ずんだもん on the right, with expressions and lip sync. Inline objects containing
+ずんだもん on the right, with expressions and lip sync. These are the only
+supported voices; do not add other characters. Inline objects containing
 only `id` and `speaker` produce voices without artwork; they are not equivalent
 to a ずんだもん動画. Use that form only for an explicit voice-only request or an
 accepted fallback, not to save download time or HTML size.

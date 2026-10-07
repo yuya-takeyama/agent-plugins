@@ -67,6 +67,11 @@ class ScenesHtmlTest(unittest.TestCase):
 
 
 class UsageTermsTest(unittest.TestCase):
+    def test_other_cast_voices_are_rejected_before_synthesis(self):
+        with self.assertRaises(SystemExit):
+            build.load_cast({'cast': [{'id': 'guest', 'speaker': '春日部つむぎ'}]})
+        self.assertEqual(len(build.load_cast({'cast': ['zundamon', 'metan']})), 2)
+
     def test_default_narrator_includes_terms_without_extra_engine_call(self):
         with patch.dict(os.environ, {}, clear=True):
             terms = build.terms_for({}, [], [], [])
@@ -74,17 +79,17 @@ class UsageTermsTest(unittest.TestCase):
         self.assertIn('https://zunko.jp/con_ongen_kiyaku.html', [link['url'] for link in terms['links']])
 
     def test_dialogue_keeps_used_voice_and_art_terms(self):
-        cast = [{'id': 'm', 'speaker': 'もち子さん', 'char': {'source': {
+        cast = [{'id': 'm', 'speaker': '四国めたん', 'char': {'source': {
             'url': 'https://example.com/art', 'credit': 'Artist',
             'terms': [{'title': 'Art terms', 'url': 'https://example.com/terms'}]}}}]
-        voices = [{'name': name, **build.voice_policy(name)} for name in ['もち子さん', 'ずんだもん']]
+        voices = [{'name': name, **build.voice_policy(name)} for name in ['四国めたん', 'ずんだもん']]
         with patch.dict(os.environ, {}, clear=True):
             terms = build.terms_for({}, cast, [{'who': 'm'}], voices)
         urls = [link['url'] for link in terms['links']]
-        self.assertIn('https://vtubermochio.wixsite.com/mochizora/利用規約', urls)
+        self.assertIn('https://zunko.jp/con_ongen_kiyaku.html', urls)
         self.assertIn('https://example.com/art', urls)
         self.assertIn('https://example.com/terms', urls)
-        self.assertNotIn('https://zunko.jp/con_ongen_kiyaku.html', urls)
+        self.assertEqual(urls.count('https://zunko.jp/con_ongen_kiyaku.html'), 1)
 
     def test_custom_adapter_is_not_assumed_to_be_voicevox(self):
         custom = {'text': 'Custom audio terms', 'links': [{'title': 'License', 'url': 'https://example.com/license'}]}
@@ -232,7 +237,7 @@ class VoiceTest(unittest.TestCase):
     def test_credits_order(self):
         cast = [{"id": "met", "speaker": "四国めたん", "char": {"source": {"credit": "立ち絵: 坂本アヒル"}}},
                 {"id": "zun", "speaker": "ずんだもん", "char": {"source": {"credit": "立ち絵: 坂本アヒル"}}},
-                {"id": "tsu", "speaker": "春日部つむぎ"}]
+                {"id": "silent", "speaker": "ずんだもん"}]
         timed = [{"who": "zun"}, {"who": "met"}, {"who": "zun"}]
         self.assertEqual(build.credits_for(timed, cast, SPEAKERS),
                          ["VOICEVOX:ずんだもん", "VOICEVOX:四国めたん", "立ち絵: 坂本アヒル"])
@@ -249,14 +254,14 @@ class VoiceTest(unittest.TestCase):
 
     def test_cast_errors(self):
         cast = [{"id": "met", "speaker": "四国めたん", "char": {"faces": {"normal": {}, "smile": {}}}},
-                {"id": "tsu", "speaker": "春日部つむぎ"}]
-        styles = build.style_ids(SPEAKERS)
+                {"id": "unavailable", "speaker": "ずんだもん"}]
+        styles = build.style_ids(SPEAKERS[:1])
         lines = [
             {"id": "ok", "who": "met", "style": "ツンツン", "face": "smile"},
             {"id": "who", "who": "nobody", "style": "ノーマル", "face": "normal"},
             {"id": "face", "who": "met", "style": "ノーマル", "face": "angry"},
             {"id": "style", "who": "met", "style": "セクシー", "face": "normal"},
-            {"id": "speaker", "who": "tsu", "style": "ノーマル", "face": "anything"},
+            {"id": "speaker", "who": "unavailable", "style": "ノーマル", "face": "anything"},
         ]
         errs = build.cast_errors(lines, cast, styles)
         self.assertEqual([e.split(":")[0] for e in errs], ["who", "face", "style", "speaker"])

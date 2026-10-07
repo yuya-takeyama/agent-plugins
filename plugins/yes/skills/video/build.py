@@ -44,7 +44,7 @@ import imageio_ffmpeg
 SKILL_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SKILL_DIR.parents[1] / "scripts"))
 from output import export
-from voice_licenses import usage_notice, voice_policy
+from voice_licenses import SUPPORTED_VOICES, usage_notice, voice_policy
 # shared across projects: a course rebuild reuses every sentence its lessons already synthesized
 TTS_CACHE = Path(os.environ.get("EV_TTS_CACHE", Path.home() / ".cache" / "yes" / "tts"))
 TTS_WORKERS = int(os.environ.get("EV_TTS_WORKERS", "4"))
@@ -100,6 +100,9 @@ def load_cast(script: dict) -> list[dict]:
             if not (raw.get("id") and raw.get("speaker")):
                 die(f"inline cast member needs id and speaker: {raw!r}")
             cast.append({"id": raw["id"], "name": raw.get("name", raw["speaker"]), "speaker": raw["speaker"], "color": raw.get("color")})
+    for member in cast:
+        if member["speaker"] not in SUPPORTED_VOICES:
+            die("YES supports only ずんだもん and 四国めたん in the cast.")
     return cast
 
 
@@ -255,7 +258,7 @@ def list_speakers() -> list[dict]:
     r = subprocess.run([*tts_cmd(), "--list-speakers", "--json"], capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip() or f"exit {r.returncode}")
-    result = json.loads(r.stdout)
+    result = [sp for sp in json.loads(r.stdout) if sp["name"] in SUPPORTED_VOICES]
     if not os.environ.get("EV_TTS_CMD"):
         for speaker in result:
             speaker.update(voice_policy(speaker["name"]))
