@@ -47,6 +47,7 @@
 .cs-badge.part { background: var(--accent-soft); color: var(--accent); }
 .cs-badge.done { background: var(--good-soft); color: var(--good); }
 .cs-badge.none { color: var(--muted); border: 1px solid var(--line); }
+.cs-badge.next { background: var(--accent); color: var(--card); }
 
 @media (max-width: 859px) {
   .cs-top { display: flex; }

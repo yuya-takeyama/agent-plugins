@@ -207,6 +207,16 @@ class VoiceTest(unittest.TestCase):
         self.assertEqual(build.credits_for(timed, cast, SPEAKERS),
                          ["VOICEVOX:ずんだもん", "VOICEVOX:四国めたん", "立ち絵: 坂本アヒル"])
 
+    def test_source_errors(self):
+        self.assertEqual(build.source_errors([{"title": "a", "url": "https://x"}]), [])
+        self.assertEqual(len(build.source_errors([{"title": "", "url": "https://x"}, {"title": "b", "url": "ftp://x"}])), 2)
+        self.assertEqual(len(build.source_errors({"title": "a"})), 1)
+        for value in (None, 12, " "):
+            self.assertTrue(build.source_errors([{"title": value, "url": "https://example.com"}]))
+        for url in (None, "https://", "javascript:alert(1)", "/relative", "https://["):
+            self.assertTrue(build.source_errors([{"title": "a", "url": url}]))
+        self.assertTrue(build.source_errors([{"title": "a", "url": "https://example.com", "note": {}}]))
+
     def test_cast_errors(self):
         cast = [{"id": "met", "speaker": "四国めたん", "char": {"faces": {"normal": {}, "smile": {}}}},
                 {"id": "tsu", "speaker": "春日部つむぎ"}]

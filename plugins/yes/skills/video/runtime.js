@@ -6,7 +6,9 @@
 //   root  — the unit's <div class="su-unit" data-unit=ID> (its fragment is already inside)
 //   data  — unit.json "data"
 //   host  — { saved: {frac, done, ...} | null, setRest(rest), progress(frac), position(rest), complete(),
-//             result(r), endActions() -> [{label, primary, run}], prefs: {get(k), set(k, v)} }
+//             result(r), endActions() -> [{label, primary, run, title?, note?, auto?}], prefs: {get(k), set(k, v)} }
+//   A primary action may carry the next step's headline (title), a line under it (note) and auto (seconds
+//   until it runs by itself; any other input cancels). The video's end screen features it over the rest.
 // A kind renders only from its own state and reports upward; the host owns hash, storage and navigation.
 window.EV = window.EV || { hooks: {}, on(id, fn) { this.hooks[id] = fn; } };
 {
@@ -138,8 +140,15 @@ function mountCast(stage, cast) {
   const goals = el('ul', 'ev-goals'); for (const g of data.goals || []) goals.append(el('li', null, g));
   start.append(el('p', null, data.kicker || ''), el('h1', null, data.title || ''), goals, playBig,
     el('p', null, `${fmt(TL.duration)} ・ ${chapters.length} チャプター ・ Space で再生/停止、←→ で文送り`));
-  const endTitle = el('h1', null, 'おしまい'), endActs = el('div', 'ev-over-row');
-  end.append(endTitle, endActs);
+  end.classList.add('ev-end');
+  const endDone = el('p', 'ev-end-done', '✓ 動画を見終わりました'), endTitle = el('h1', null, 'おしまい'), endNote = el('p', 'ev-end-note');
+  const endMain = el('div', 'ev-end-main'), endCount = el('p', 'ev-end-count'), endActs = el('div', 'ev-end-links');
+  end.append(endDone, endTitle, endNote, endMain, endCount, endActs);
+  let autoTimer = null, autoTick = null;
+  function cancelAuto() {
+    clearTimeout(autoTimer); clearInterval(autoTick); autoTimer = autoTick = null;
+    end.classList.remove('ev-counting'); endCount.textContent = '';
+  }
   stage.append(start, end); viewport.append(stage);
   const capOut = el('div', 'ev-cap-out');
   const controls = el('div', 'ev-controls');
@@ -172,6 +181,18 @@ function mountCast(stage, cast) {
     const li = el('li'); li.append(b); chList.append(li);
   }
   descBody.append(el('h3', null, 'チャプター'), chList);
+  const sources = (Array.isArray(data.sources) ? data.sources : []).filter((s) => {
+    if (!s || typeof s.title !== 'string' || !s.title.trim() || typeof s.url !== 'string') return false;
+    try { return ['http:', 'https:'].includes(new URL(s.url).protocol); } catch { return false; }
+  });
+  if (sources.length) {
+    const ul = el('ul', 'ev-desc-sources');
+    for (const s of sources) {
+      const a = el('a', null, s.title); a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
+      const li = el('li'); li.append(a); if (typeof s.note === 'string' && s.note) li.append(el('span', 'ev-desc-note', s.note)); ul.append(li);
+    }
+    descBody.append(el('h3', null, '出典'), ul);
+  }
   if (credits.length) {
     const ul = el('ul', 'ev-desc-credits'); for (const c of credits) ul.append(el('li', null, c));
     descBody.append(el('h3', null, 'クレジット'), ul);
@@ -259,6 +280,7 @@ function mountCast(stage, cast) {
     requestAnimationFrame(loop);
   }
   function play() {
+    cancelAuto();
     started = true; start.hidden = true; end.hidden = true;
     if (audio.ended || t >= TL.duration - 0.05) seek(0);
     lastCT = null; audio.playbackRate = SPEEDS[speedIdx];
@@ -274,11 +296,25 @@ function mountCast(stage, cast) {
   audio.addEventListener('ended', () => {
     render(TL.duration);
     if (!done) { done = true; host.complete(); }
-    endActs.textContent = '';
-    const actions = [...host.endActions(), { label: 'もう一度', run: () => { seek(0); play(); } }];
-    for (const a of actions) { const b = el('button', a.primary ? 'primary' : '', a.label); b.addEventListener('click', a.run); endActs.append(b); }
-    endTitle.textContent = data.endTitle || 'おしまい';
-    end.hidden = false;
+    cancelAuto(); endMain.textContent = ''; endActs.textContent = '';
+    const actions = [...host.endActions(), { label: 'もう一度見る', run: () => { seek(0); play(); } }];
+    const main = actions.find((a) => a.primary) || actions.at(-1);   // nothing next: replay is the main action
+    for (const a of actions) {
+      const b = el('button', a === main ? 'ev-end-go' : '', a.label);
+      b.addEventListener('click', () => { cancelAuto(); a.run(); });
+      (a === main ? endMain : endActs).append(b);
+    }
+    endTitle.textContent = main?.title || data.endTitle || 'おしまい';
+    endNote.textContent = main?.note || ''; endNote.hidden = !main?.note;
+    end.hidden = false; fit();
+    if (main?.auto > 0 && active && !document.documentElement.classList.contains('ev-shot')) {
+      let left = Math.round(main.auto);
+      const say = () => { endCount.textContent = `${left} 秒後に自動で始まります`; const stay = el('button', null, 'とどまる');
+        stay.addEventListener('click', cancelAuto); endCount.append(' ・ ', stay); };
+      end.style.setProperty('--auto', `${main.auto}s`); end.classList.add('ev-counting'); say();
+      autoTick = setInterval(() => { left -= 1; if (left > 0) say(); }, 1000);
+      autoTimer = setTimeout(() => { cancelAuto(); if (active && !end.hidden) main.run(); }, main.auto * 1000);
+    }
   });
   const playOrToggle = () => { if (started) toggle(); else play(); };
   playBtn.addEventListener('click', playOrToggle);
@@ -305,6 +341,7 @@ function mountCast(stage, cast) {
   trBtn.addEventListener('click', toggleTr);
 
   document.addEventListener('keydown', (e) => {
+    if (active && autoTimer) cancelAuto();
     if (!active || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (k === ' ' || k === 'k') { e.preventDefault(); playOrToggle(); }
@@ -317,6 +354,8 @@ function mountCast(stage, cast) {
     else if (k === '>' || k === '.') setSpeed(speedIdx + 1);
     else if (k === '<' || k === ',') setSpeed(speedIdx - 1);
   });
+  // A pointer interaction with controls or the transcript also cancels navigation.
+  root.addEventListener('pointerdown', () => { if (active) cancelAuto(); }, { capture: true });
 
   // ---------- layout: scale the 1280x720 stage into whatever box the host gives ----------
   function fit() {
@@ -327,6 +366,9 @@ function mountCast(stage, cast) {
     root.classList.toggle('portrait', portrait);
     if (portrait && cap.parentElement !== capOut) capOut.append(cap);
     if (!portrait && cap.parentElement !== stage) stage.append(cap);
+    // on a portrait phone the scaled stage would shrink the end screen's buttons; it sits below at real size
+    if (portrait && end.parentElement !== root) viewport.after(end);
+    if (!portrait && end.parentElement !== stage) stage.append(end);
     const shot = document.documentElement.classList.contains('ev-shot');
     const pad = shot ? 0 : box.width < 860 ? 8 : 20;
     viewport.style.flex = portrait ? 'none' : '';
@@ -352,7 +394,7 @@ function mountCast(stage, cast) {
       start.hidden = !!ch || started; end.hidden = true;
       seek(ch ? ch.start + 0.01 : started ? t : 0);
     },
-    hide() { active = false; audio.pause(); tr.classList.remove('open'); root.hidden = true; },
+    hide() { active = false; cancelAuto(); audio.pause(); tr.classList.remove('open'); root.hidden = true; },
   };
 };
 }

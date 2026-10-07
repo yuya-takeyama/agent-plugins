@@ -86,9 +86,31 @@
 .ev-over .ev-goals { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 24px; text-align: left; }
 .ev-over .ev-goals li::before { content: "✓ "; color: var(--good); font-weight: 900; }
 .ev-play-big { width: 104px; height: 104px; border-radius: 50%; border: 0; background: var(--accent); color: var(--stage); font-size: 42px; cursor: pointer; padding-left: 8px; flex: none; }
-.ev-over-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
-.ev-over-row button { border: 2px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 999px; padding: 12px 30px; font-size: 24px; font-weight: 700; cursor: pointer; }
-.ev-over-row button.primary { background: var(--accent); color: var(--stage); }
+/* end screen: the next step is the headline and the one big button; the rest are quiet links */
+.ev-end { gap: 14px; }
+.ev-end .ev-end-done { font-size: 22px; font-weight: 700; color: var(--good); }
+.ev-end h1 { font-size: 64px; }
+.ev-end .ev-end-note { font-size: 26px; color: var(--muted); }
+.ev-end-main { margin-top: 10px; }
+.ev-end-go { position: relative; overflow: hidden; border: 0; border-radius: 999px; background: var(--accent); color: var(--stage);
+  font-size: 34px; font-weight: 900; padding: 22px 64px; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.ev-end-go:hover { filter: brightness(1.08); }
+.ev-end-go:focus-visible { outline: 4px solid var(--accent-soft); outline-offset: 4px; }
+.ev-counting .ev-end-go::after { content: ""; position: absolute; inset: auto 0 0 0; height: 6px; background: currentColor; opacity: .55;
+  transform-origin: left; animation: ev-auto var(--auto, 10s) linear forwards; }
+@keyframes ev-auto { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ev-end .ev-end-count { font-size: 20px; min-height: 1.5em; }
+.ev-end-count button, .ev-end-links button { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 4px 6px; }
+.ev-end-links { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; font-size: 22px; }
+/* portrait phones: the end screen leaves the scaled stage and sits under it at real size */
+.ev-video.portrait > .ev-end { position: static; flex: 1; justify-content: flex-start; padding: 20px 16px; gap: 10px; background: var(--card); }
+.ev-video.portrait > .ev-end h1 { font-size: 26px; }
+.ev-video.portrait > .ev-end .ev-end-done { font-size: 14px; }
+.ev-video.portrait > .ev-end .ev-end-note { font-size: 15px; }
+.ev-video.portrait > .ev-end .ev-end-go { font-size: 19px; padding: 14px 28px; width: 100%; max-width: 360px; }
+.ev-video.portrait > .ev-end .ev-end-count, .ev-video.portrait > .ev-end .ev-end-links { font-size: 14px; }
+.ev-video.portrait:has(> .ev-end:not([hidden])) .ev-cap-out { display: none; }
+@media (prefers-reduced-motion: reduce) { .ev-counting .ev-end-go::after { animation: none; transform: none; } }
 
 /* controls */
 .ev-controls { height: 56px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px calc(env(safe-area-inset-bottom, 0px)); font-size: 14px; }
@@ -124,11 +146,14 @@
 .ev-desc-body { max-height: min(40vh, 340px); overflow-y: auto; padding: 0 16px 16px; }
 .ev-desc-text { margin: 4px 0 0; white-space: pre-line; line-height: 1.7; }
 .ev-desc h3 { font-size: 13px; margin: 14px 0 4px; color: var(--muted); }
-.ev-desc-ch, .ev-desc-credits { list-style: none; margin: 0; padding: 0; }
+.ev-desc-ch, .ev-desc-credits, .ev-desc-sources { list-style: none; margin: 0; padding: 0; }
 .ev-desc-ch button { display: flex; gap: 12px; width: 100%; text-align: left; border: 0; background: none; padding: 4px 6px; border-radius: 6px; cursor: pointer; line-height: 1.5; }
 .ev-desc-ch button:hover { background: var(--line); }
 .ev-desc-time { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.2em; }
 .ev-desc-credits li { padding: 2px 6px; color: var(--muted); }
+.ev-desc-sources li { padding: 2px 6px; line-height: 1.5; overflow-wrap: anywhere; }
+.ev-desc-sources a { color: var(--accent); }
+.ev-desc-note { color: var(--muted); margin-left: 8px; }
 
 /* dialogue (data.cast): board at x 64–1216 / y 24–520, 立ち絵 in the bottom corners, speaker-colored captions */
 .ev-cast .ev-top { height: 24px; padding: 0 64px; gap: 14px; }

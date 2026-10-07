@@ -17,6 +17,11 @@ output on desktop and mobile; report unavailable checks honestly.
 
 Read [the authoring guide](references/authoring.md) for schemas and runtime behavior.
 
+List primary references in `script.json` as `"sources": [{"title": "…",
+"url": "https://…", "note": "optional"}]`. They appear as 出典 links in
+the expandable description, including inside a course. `lint` and `build`
+reject missing titles and URLs other than absolute HTTP(S) URLs.
+
 Run `uv run <this-skill-dir>/build.py build <project-dir>`.
 Add `--format bundle` for a sibling `<name>-bundle/index.html` and assets directory;
 otherwise the output is one HTML file. `--max-bytes N` optionally enforces a host limit.

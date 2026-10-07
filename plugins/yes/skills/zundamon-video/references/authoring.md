@@ -165,7 +165,10 @@ Never draw credits on the board. The page's 概要欄 under the player lists
 every VOICEVOX character that actually spoke (`VOICEVOX:四国めたん`,
 `VOICEVOX:ずんだもん`, and any extra voice) plus `立ち絵: 坂本アヒル`, built
 from the cast. Write a 2–4 line `"description"` for it; `"credit"` is ignored
-with a cast.
+with a cast. Put primary references in `"sources"` as
+`[{"title": "…", "url": "https://…", "note": "optional"}]` so the
+description lists them as 出典 links. The sibling `video` builder validates
+these references before synthesizing speech.
 
 ## Verify before publishing
 
