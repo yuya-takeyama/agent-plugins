@@ -1,6 +1,15 @@
 # Verification
 
-Run the commands in the root README for metadata, Python and JavaScript checks.
+Run these commands from the repository root for metadata, Python and JavaScript checks:
+
+```sh
+npm ci
+npm test
+python3 -m unittest discover -s tests -v
+python3 scripts/validate.py
+uv run plugins/yes/skills/video/test_build.py
+claude plugin validate .
+```
 
 ```sh
 uv run tests/smoke.py
