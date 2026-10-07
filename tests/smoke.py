@@ -67,6 +67,26 @@ Thread(target=server.serve_forever,daemon=True).start()
 base=f'http://127.0.0.1:{server.server_port}'
 with sync_playwright() as pw:
     browser=pw.chromium.launch(channel=os.environ.get('YES_BROWSER_CHANNEL','chrome') or None)
+    # A text-stroke can leave stale pixels outside Chromium's invalidated bounds.
+    # Compare with an empty frame rather than a platform-specific golden image.
+    caption_page=browser.new_page(viewport={'width':1280,'height':720})
+    caption_page.set_content('<style>'+(SKILLS/'video/runtime.css').read_text()+'''
+html,body { margin:0; background:#faf9f6; }
+* { animation:none!important; transition:none!important; }
+.ev-video { --font:Arial,sans-serif; }
+.ev-stage { position:relative; width:1280px; height:720px; }
+</style><div class="ev-video ev-cast"><div class="ev-stage"><div class="ev-cap">
+<div class="ev-cap-in"><span class="ev-cap-edge"></span><span></span></div>
+</div></div></div>''')
+    caption_page.evaluate('document.fonts.ready')
+    empty_caption=caption_page.screenshot()
+    for text in ('めたん、説明を書いたのに、読んでもらえないのだ。',
+                 '届けたい相手に、ちゃんと伝わるところまで確認するのだ！'):
+        caption_page.locator('.ev-cap span').evaluate_all('(spans,text)=>spans.forEach(s=>s.textContent=text)',text)
+        caption_page.screenshot()
+    caption_page.locator('.ev-cap span').evaluate_all('spans=>spans.forEach(s=>s.textContent="")')
+    assert caption_page.screenshot()==empty_caption,'Clearing captions left stale stroke pixels'
+    caption_page.close()
     for name,path in [('slides',slides),('quiz',work/'out/quiz.html'),
                       ('video',video/'out/video.html'),('video-bundle',video/'out/video-bundle/index.html'),
                       ('dialogue',dialogue/'out/video.html'),('course-bundle',course/'out/course-bundle/index.html')]:

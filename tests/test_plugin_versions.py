@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -71,6 +72,25 @@ class PluginVersionTests(unittest.TestCase):
         result = self.validate()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('plugins/another: plugin versions differ', result.stderr)
+
+    def test_only_named_composed_previews_are_allowed(self):
+        folder = self.root / 'docs/previews'
+        folder.mkdir(parents=True)
+        # The boundary check inspects container headers, not decoded pixel content.
+        png_header = b'\x89PNG\r\n\x1a\n' + b'\0\0\0\rIHDR' + struct.pack('>II', 1280, 720)
+        preview = folder / 'yes-intro.png'
+        preview.write_bytes(png_header)
+        video = folder / 'yes-intro.mp4'
+        video.write_bytes(b'\0\0\0\x18ftypisom' + b'\0' * 12)
+        self.assertEqual(self.validate().returncode, 0)
+        preview.write_bytes(png_header[:16] + struct.pack('>II', 720, 1280))
+        self.assertNotEqual(self.validate().returncode, 0)
+        preview.write_bytes(png_header)
+        raw = folder / 'character-layer.png'
+        raw.write_bytes(png_header)
+        result = self.validate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('generated/third-party media in source', result.stderr)
 
 
 if __name__ == '__main__':
