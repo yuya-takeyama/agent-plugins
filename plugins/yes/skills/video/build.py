@@ -91,6 +91,7 @@ def load_project(root: Path) -> tuple[dict, dict, list[dict], list[dict]]:
     if (root / "readings.json").exists():
         readings.update(json.loads((root / "readings.json").read_text()))
     cast = load_cast(script)
+    KEEP_WHOLE.update(w for w in [*readings, *(m["name"] for m in cast)] if len(w) > 1)
     return script, readings, cast, flatten(script, [m["id"] for m in cast])
 
 
@@ -617,9 +618,30 @@ def timeline(script: dict, timed: list[dict], duration: float) -> dict:
     return {"duration": duration, "chapters": chapters, "scenes": scenes, "lines": lines}
 
 
+# Words a caption never breaks inside: BudouX splits some names (ずんだも|ん). Extended per project
+# with the cast's names and the readings' surfaces.
+KEEP_WHOLE = {"ずんだもん", "四国めたん", "めたん"}
+
+
 def wbr(text: str) -> str:
-    """Escape and allow line breaks only between BudouX phrases."""
-    return "<wbr>".join(html.escape(p) for p in parser_ja.parse(text))
+    """Escape and allow line breaks only between BudouX phrases, never inside a KEEP_WHOLE word."""
+    cuts, pos = [], 0
+    for phrase in parser_ja.parse(text)[:-1]:
+        pos += len(phrase)
+        cuts.append(pos)
+    inside = set()
+    for word in KEEP_WHOLE:
+        i = text.find(word)
+        while i >= 0:
+            inside.update(range(i + 1, i + len(word)))
+            i = text.find(word, i + 1)
+    out, last = [], 0
+    for cut in cuts:
+        if cut not in inside:
+            out.append(text[last:cut])
+            last = cut
+    out.append(text[last:])
+    return "<wbr>".join(html.escape(p) for p in out)
 
 
 def quiz_section(scene_id: str, timed: list[dict]) -> str:

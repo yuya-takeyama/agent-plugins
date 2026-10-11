@@ -413,5 +413,12 @@ class CaptionFontTest(unittest.TestCase):
         self.assertLess(len(data), 60_000)
 
 
+class WbrTest(unittest.TestCase):
+    def test_breaks_between_phrases_but_never_inside_a_name(self):
+        self.assertEqual(build.wbr("じゃあ、説明は全部ずんだもん動画にするのだ！"),
+                         "じゃあ、<wbr>説明は<wbr>全部ずんだもん動画に<wbr>するのだ！")
+        self.assertEqual(build.wbr("<b>"), "&lt;b&gt;")
+
+
 if __name__ == "__main__":
     unittest.main()
