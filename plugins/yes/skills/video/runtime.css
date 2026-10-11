@@ -125,6 +125,24 @@
 .ev-seek-tick { position: absolute; top: 7px; width: 2px; height: 14px; background: var(--muted); opacity: .6; }
 .ev-seek-knob { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
 
+.ev-fs { display: inline-flex; align-items: center; justify-content: center; }
+.ev-fs-out, .ev-full .ev-fs-in { display: none; }
+.ev-full .ev-fs-out { display: inline; }
+
+/* maximized: the player itself in fullscreen (Fullscreen API), or without it the page's viewport. Stage, captions and
+   controls only; the stage keeps 16:9 on the page background */
+.ev-video.ev-full { background: var(--bg); }
+.ev-video.ev-pseudo { position: fixed; inset: 0; z-index: 1000; }
+.ev-video.ev-full .ev-desc { display: none; }
+.ev-video.ev-full .ev-stage { border-radius: 0; box-shadow: none; }
+.ev-video.ev-full .ev-controls { transition: opacity .3s ease; }
+.ev-video.ev-full.ev-idle .ev-controls { opacity: 0; }
+.ev-video.ev-full.ev-idle { cursor: none; }
+/* a portrait phone keeps captions under the stage at readable size; the block sits mid-screen */
+.ev-video.ev-full.portrait > .ev-viewport { margin-top: auto; }
+.ev-video.ev-full.portrait .ev-cap-out { flex: none; min-height: 96px; }
+.ev-video.ev-full.portrait .ev-controls { margin-top: auto; }
+
 /* transcript drawer */
 .ev-tr { position: absolute; top: 0; right: 0; bottom: 56px; width: min(400px, 100%); background: var(--card); border-left: 1px solid var(--line);
   overflow-y: auto; z-index: 10; padding: 18px 18px 40px; transform: translateX(100%); transition: transform .25s ease; visibility: hidden; }
@@ -170,9 +188,11 @@
 .ev-stage:has(> .ev-over:not([hidden])) .ev-char { visibility: hidden; }
 .ev-cast .ev-cap { left: 270px; right: 270px; bottom: 16px; }
 /* Isolate thick text strokes so Chromium clears their full ink bounds on cue changes. */
+/* faded controls take no taps: the first tap only brings them back */
+.ev-full.ev-idle .ev-controls { pointer-events: none; }
 .ev-cap-in { display: grid; max-width: 740px; will-change: transform; }
 .ev-cap-in > span { grid-area: 1 / 1; }
-.ev-cast .ev-cap span { background: none; padding: 0; border-radius: 0; max-width: none; color: var(--who, #fff); font-family: "M PLUS Rounded 1c", var(--font); font-weight: 800; font-size: 34px; line-height: 1.38;
+.ev-cast .ev-cap span { background: none; padding: 0; border-radius: 0; max-width: none; color: var(--who, #fff); font-family: var(--ev-cap-font, "M PLUS Rounded 1c"), var(--font); font-weight: 800; font-size: 34px; line-height: 1.38;
   -webkit-text-stroke: 6px #fff; paint-order: stroke fill; }
 .ev-cast .ev-cap span.ev-cap-edge { color: #1d1d22; -webkit-text-stroke: 16px #1d1d22; }
 .ev-video.portrait.ev-cast .ev-cap-out .ev-cap span { font-size: 17px; padding: 0; -webkit-text-stroke-width: 3px; }

@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["budoux>=0.6", "imageio-ffmpeg>=0.5", "playwright>=1.50"]
+# dependencies = ["budoux>=0.6", "imageio-ffmpeg>=0.5", "playwright>=1.50", "fonttools>=4.50", "brotli>=1.1"]
 # ///
 """uv run test_build.py"""
 
@@ -93,7 +93,7 @@ class UsageTermsTest(unittest.TestCase):
 
     def test_custom_adapter_is_not_assumed_to_be_voicevox(self):
         custom = {'text': 'Custom audio terms', 'links': [{'title': 'License', 'url': 'https://example.com/license'}]}
-        with patch.dict(os.environ, {'EV_TTS_CMD': 'custom'}):
+        with patch.dict(os.environ, {'EV_TTS_CMD': 'custom', 'YES_TTS_ENGINE': 'other'}):
             self.assertEqual(build.terms_for({'usageTerms': custom}, [], [], []), custom)
             self.assertEqual(build.terms_for({}, [], [], []), {})
             for bad in (None, {'links': []}, {'text': 'Bad', 'links': [{'title': 'Bad', 'url': 'javascript:alert(1)'}]}):
@@ -226,7 +226,7 @@ class VoiceTest(unittest.TestCase):
         with patch.dict(os.environ, {"EV_TTS_CMD": ""}):
             self.assertEqual(build.narration_credit({}), "VOICEVOX:ずんだもん")
         self.assertEqual(build.narration_credit({"credit": " Other TTS:Alice "}), "Other TTS:Alice")
-        with self.assertRaises(SystemExit):
+        with patch.dict(os.environ, {"YES_TTS_ENGINE": "other"}), self.assertRaises(SystemExit):
             build.narration_credit({})
 
     def test_list_speakers_and_styles(self):
@@ -266,6 +266,158 @@ class VoiceTest(unittest.TestCase):
         errs = build.cast_errors(lines, cast, styles)
         self.assertEqual([e.split(":")[0] for e in errs], ["who", "face", "style", "speaker"])
         self.assertEqual([e.split(":")[0] for e in build.cast_errors(lines, cast, None)], ["who", "face"])
+
+
+class BackendTest(unittest.TestCase):
+    """Which speech source is used, and whether VOICEVOX rules apply to it."""
+
+    def env(self, **kw):
+        base = {k: "" for k in ("YES_TTS_CMD", "EV_TTS_CMD", "YES_TTS_FILES", "YES_TTS_ENGINE", "YES_TTS_SPEAKERS")}
+        return patch.dict(os.environ, {**base, **kw})
+
+    def test_default_is_the_bundled_voicevox(self):
+        with self.env():
+            b = build.backend()
+        self.assertEqual((b["kind"], b["engine"]), ("bundled", "voicevox"))
+
+    def test_a_command_is_voicevox_unless_declared_other(self):
+        with self.env(EV_TTS_CMD="tts"):
+            self.assertEqual(build.backend()["engine"], "voicevox")
+        with self.env(YES_TTS_CMD="zundaspeak"):
+            self.assertEqual((build.backend()["kind"], build.backend()["engine"]), ("cmd", "voicevox"))
+        with self.env(YES_TTS_CMD="other-tts", YES_TTS_ENGINE="other"):
+            self.assertEqual(build.backend()["engine"], "other")
+
+    def test_invalid_combinations_stop(self):
+        for kw in ({"YES_TTS_ENGINE": "nope"}, {"YES_TTS_FILES": "1"}, {"YES_TTS_FILES": "1", "YES_TTS_CMD": "x", "YES_TTS_ENGINE": "other"},
+                   {"YES_TTS_ENGINE": "other"}):
+            with self.env(**kw), self.assertRaises(SystemExit):
+                build.backend()
+
+    def test_voicevox_rules_follow_the_engine_not_the_command(self):
+        guest = {"cast": [{"id": "guest", "speaker": "春日部つむぎ"}]}
+        with self.env(YES_TTS_CMD="zundaspeak", YES_TTS_ENGINE="voicevox"), self.assertRaises(SystemExit):
+            build.load_cast(guest)
+        with self.env(YES_TTS_FILES="1", YES_TTS_ENGINE="voicevox"), self.assertRaises(SystemExit):
+            build.load_cast(guest)
+        with self.env(YES_TTS_CMD="other-tts", YES_TTS_ENGINE="other"):
+            self.assertEqual(build.load_cast(guest)[0]["speaker"], "春日部つむぎ")
+
+    def test_another_voicevox_gets_current_terms_and_the_required_credit(self):
+        with self.env(YES_TTS_CMD="zundaspeak", YES_TTS_ENGINE="voicevox"):
+            terms = build.terms_for({}, [], [], [])
+            self.assertEqual(build.narration_credit({}), "VOICEVOX:ずんだもん")
+        urls = [link["url"] for link in terms["links"]]
+        self.assertIn("https://zunko.jp/con_ongen_kiyaku.html", urls)
+        self.assertTrue(any("/blob/main/" in u for u in urls))
+        self.assertFalse(any("0.25.2" in u for u in urls))
+
+    def test_cache_identity_differs_per_backend(self):
+        with self.env():
+            bundled = build.cache_key("あ", 1.0, 3)
+        with self.env(YES_TTS_CMD="zundaspeak", YES_TTS_ENGINE="voicevox"):
+            cmd = build.cache_key("あ", 1.0, 3)
+        with self.env(YES_TTS_FILES="1", YES_TTS_ENGINE="voicevox"):
+            files = build.cache_key("あ", 1.0, 3)
+        self.assertEqual(len({bundled, cmd, files}), 3)
+
+
+class VoicevoxCommandTest(unittest.TestCase):
+    """A VOICEVOX command (zundaspeak and the like): the narrator is named, never the command's default."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        fake = self.tmp / "fake-tts"
+        fake.write_text(FAKE_TTS)
+        fake.chmod(0o755)
+        self.log = self.tmp / "log"
+        self.patch = patch.dict(os.environ, {"YES_TTS_CMD": str(fake), "YES_TTS_ENGINE": "voicevox", "EV_TTS_CMD": "",
+                                             "YES_TTS_FILES": "", "FAKE_TTS_LOG": str(self.log)})
+        self.patch.start()
+
+    def tearDown(self):
+        self.patch.stop()
+
+    def test_single_narrator_is_zundamon_by_style_id(self):
+        lines = [{"id": "a.0", "text": "あ"}]
+        speakers = build.resolve_voices([], lines)
+        self.assertEqual(lines[0]["style_id"], 3)
+        self.assertEqual(speakers[0]["terms_url"], "https://zunko.jp/con_ongen_kiyaku.html")
+
+
+class FilesBackendTest(unittest.TestCase):
+    """YES_TTS_FILES: the agent writes the WAVs that tts-plan lists; build never runs a command."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.project = self.tmp / "p"
+        (self.project).mkdir()
+        (self.project / "script.json").write_text(json.dumps({"title": "t", "chapters": [
+            {"id": "c", "title": "c", "scenes": [{"id": "c-1", "lines": ["あいう。", "えお。"]}]}]}, ensure_ascii=False))
+        self.speakers = self.tmp / "speakers.json"
+        self.speakers.write_text(json.dumps(SPEAKERS, ensure_ascii=False))
+        self.patch = patch.dict(os.environ, {"YES_TTS_FILES": "1", "YES_TTS_ENGINE": "voicevox", "YES_TTS_CMD": "", "EV_TTS_CMD": "",
+                                             "YES_TTS_SPEAKERS": str(self.speakers)})
+        self.patch.start()
+        self.cache = patch.object(build, "TTS_CACHE", self.tmp / "cache")
+        self.cache.start()
+
+    def tearDown(self):
+        self.cache.stop()
+        self.patch.stop()
+
+    def test_plan_lists_missing_sentences_then_build_reads_them(self):
+        build.cmd_tts_plan(self.project)
+        plan = json.loads((self.project / "out" / "tts-plan.json").read_text())
+        self.assertEqual(plan["engine"], "voicevox")
+        self.assertEqual([(i["text"], i["speaker"], i["style"], i["style_id"]) for i in plan["items"]],
+                         [("あいう。", "ずんだもん", "ノーマル", 3), ("えお。", "ずんだもん", "ノーマル", 3)])
+        _, readings, _, lines = build.load_project(self.project)
+        build.resolve_voices([], lines)
+        with self.assertRaises(SystemExit):
+            build.synth(lines, readings, build.TTS_CACHE, 1.0)
+        for item in plan["items"]:
+            with wave.open(item["file"], "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(b"\0\0" * 2400)
+        wavs = build.synth(lines, readings, build.TTS_CACHE, 1.0)
+        self.assertEqual(len(wavs), 2)
+        build.cmd_tts_plan(self.project)
+        self.assertEqual(json.loads((self.project / "out" / "tts-plan.json").read_text())["items"], [])
+
+    def test_voices_need_the_speaker_list(self):
+        cast = build.load_cast({"cast": [{"id": "m", "speaker": "四国めたん"}]})
+        lines = [{"id": "a.0", "text": "あ", "who": "m", "style": "ツンツン", "face": "normal"}]
+        with patch.dict(os.environ, {"YES_TTS_SPEAKERS": ""}), self.assertRaises(SystemExit):
+            build.resolve_voices(cast, lines)
+        with patch.dict(os.environ, {"YES_TTS_SPEAKERS": ""}), self.assertRaises(SystemExit):
+            build.resolve_voices([], [{"id": "a.0", "text": "あ"}])
+        build.resolve_voices(cast, lines)
+        self.assertEqual(lines[0]["style_id"], 6)
+
+
+class CaptionFontTest(unittest.TestCase):
+    def test_subset_holds_the_caption_glyphs_and_a_bad_cache_is_refetched(self):
+        cache = Path(tempfile.mkdtemp())
+        with patch.object(build, "FONT_CACHE", cache):
+            css = build.caption_font_css(["字幕のテスト"], "yes-cap-x")
+            if not css:
+                self.skipTest("caption font download unavailable")
+            self.assertIn('font-family:"yes-cap-x"', css)
+            (cache / Path(build.CAPTION_FONT["url"]).name).write_bytes(b"broken")
+            self.assertTrue(build.caption_font_css(["字幕"], "yes-cap-y"))
+        import base64, io
+        from fontTools.ttLib import TTFont
+        data = base64.b64decode(css.split("base64,")[1].split(")")[0])
+        cmap = TTFont(io.BytesIO(data)).getBestCmap()
+        self.assertTrue(all(ord(ch) in cmap for ch in "字幕のテスト"))
+        self.assertLess(len(data), 60_000)
+
+
+class WbrTest(unittest.TestCase):
+    def test_breaks_between_phrases_but_never_inside_a_name(self):
+        self.assertEqual(build.wbr("じゃあ、説明は全部ずんだもん動画にするのだ！"),
+                         "じゃあ、<wbr>説明は<wbr>全部ずんだもん動画に<wbr>するのだ！")
+        self.assertEqual(build.wbr("<b>"), "&lt;b&gt;")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,8 @@ Never touch the blocks marked `data-slides` — they are the runtime.
 Deck-specific CSS goes in the second `<style>`. `example.html` is a complete
 deck that demonstrates every feature below; read it before a first deck.
 
-**Content.** One claim per slide, the headline (`h2`) states it. 10–25
+**Content.** One claim per slide, the headline (`h2`) states it. Technical
+terms follow `<PLUGIN>/references/terms-ja.md` (one form per term). 10–25
 slides is normal; aim for ≤ 6 bullets or 2–4 cards per slide. Give every
 slide a short `data-title` when its heading is long — it is what the TOC and
 the bar show. Give a slide an `id` when other decks or slides will link to
@@ -103,7 +104,10 @@ it is for playful decks such as the ドパガキ ones below.
 **Links.** Use `href="#7"` or `href="#pricing.2"` within a deck. Link to
 other documents with ordinary `href` URLs, or `data-page="other.html#3.2"`.
 Single-page publishing hosts may not support relative documents. External
-links use `target="_blank" rel="noopener"`.
+links use `target="_blank" rel="noopener"`. A host page can resolve
+`data-page` itself: a `<script>` before the runtime block that defines
+`window.YESHost.resolveLink(ref, hash, {framed})` returning `{href, target}`
+(or `null` for the plain rules) is asked first.
 
 **Controls** (built by the runtime, identical in every deck; `?` shows them):
 → / Space / PageDown next, ← / PageUp back, Shift+→/← skip steps, Home /

@@ -53,7 +53,7 @@ for base in (ROOT/'plugins',ROOT/'docs'):
                     expect(header[4:8] == b'ftyp', f'{path}: expected an MP4 preview')
             continue
         text=path.read_text()
-        expect('stash.yuyat' not in text and 'voicevox.yuyat' not in text,f'{path}: owner-specific service dependency')
+        expect('stash.yuyat' not in text and 'voicevox.yuyat' not in text and 'window.stash' not in text,f'{path}: owner-specific service dependency')
         expect(not any(s in text for s in ('stash-diagramming','stash-dataviz','stash-design')),f'{path}: excluded skill reference')
         if path.suffix=='.md':
             for link in re.findall(r'\]\(([^)]+)\)',text):

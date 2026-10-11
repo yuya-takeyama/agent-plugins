@@ -7,40 +7,90 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const clean = (v) => ({ frac: +v.frac || 0, done: !!v.done, score: v.score == null ? undefined : +v.score,
                       total: v.total == null ? undefined : +v.total, wrong: Array.isArray(v.wrong) ? v.wrong.map(Number) : [] });
-const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0);
   const DATA = JSON.parse(document.getElementById('cs-data').textContent);
+  // build.py stores each data: URI that several units embed (立ち絵 layers) once, as {"$blob": n}
+  const unblob = (v) => {
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = unblob(v[i]); return v; }
+    if (!v || typeof v !== 'object') return v;
+    if (typeof v.$blob === 'number' && Object.keys(v).length === 1) return DATA.blobs[v.$blob];
+    for (const k of Object.keys(v)) v[k] = unblob(v[k]);
+    return v;
+  };
+  if (DATA.blobs) unblob(DATA.unitData);
   const META = DATA.meta, LESSONS = DATA.lessons;
   const UNITS = LESSONS.flatMap((l) => l.units.map((u) => ({ ...u, lesson: l })));
   const byUnit = new Map(UNITS.map((u) => [u.id, u]));
   const byLesson = new Map(LESSONS.map((l) => [l.id, l]));
+  // a unit with `variants` is one unit to the learner, shown as one of several versions (each its own instance,
+  // node and unitData under `<unit>~<key>`); progress is the unit's, so watching either version completes it
+  const byVariant = new Map(UNITS.flatMap((u) => (u.variants || []).map((v) => [v.id, { unit: u, v }])));
   const root = document.documentElement;
 
-  // ---------- persistence: localStorage when available, otherwise in-memory state ----------
-  const state = { units: {}, resume: null };   // units[uid] = {frac, done, score, total, wrong}
+  // ---------- persistence: localStorage, plus the host's store when the page defines window.YESHost.storage ----------
+  const state = { units: {}, resume: null, variant: null };   // units[uid] = {frac, done, score, total, wrong}; variant = preferred key
   const local = { get(k) { try { return JSON.parse(localStorage.getItem('cs:' + location.pathname + ':' + k)); } catch { return null; } },
                   set(k, v) { try { localStorage.setItem('cs:' + location.pathname + ':' + k, JSON.stringify(v)); } catch {} } };
+  const hostStore = window.YESHost?.storage || null;
+  const put = (key, value) => {
+    local.set(key, value);
+    if (hostStore) { try { Promise.resolve(hostStore.set(key, value)).catch(() => {}); } catch {} }
+  };
   const timers = {};
   const pending = new Map();
   function save(key, value, delay = 0) {
     clearTimeout(timers[key]);
     pending.delete(key);
-    if (!delay) { local.set(key, value); return; }
+    if (!delay) { put(key, value); return; }
     pending.set(key, value);
-    timers[key] = setTimeout(() => { pending.delete(key); local.set(key, value); }, delay);
+    timers[key] = setTimeout(() => { pending.delete(key); put(key, value); }, delay);
   }
   addEventListener('pagehide', () => {
-    for (const [key, value] of pending) { clearTimeout(timers[key]); local.set(key, value); }
+    for (const [key, value] of pending) { clearTimeout(timers[key]); put(key, value); }
     pending.clear();
   });
-  for (const u of UNITS) { const v = local.get(`u:${u.id}`); if (v && typeof v === 'object') state.units[u.id] = clean(v); }
-  { const r = local.get('resume'); if (r && byUnit.has(r.unit)) state.resume = r; }
+  const cleanResume = (v) => (v && byUnit.has(v.unit) ? { unit: v.unit, rest: String(v.rest || ''), ...(typeof v.variant === 'string' ? { variant: v.variant } : {}) } : null);
+  // a second source (the host's store) never takes progress back: the furthest watch and any finish win
+  const merge = (a, b) => {
+    if (!a) return b;
+    const taken = b.score != null ? b : a;
+    return { frac: Math.max(a.frac, b.frac), done: a.done || b.done, score: taken.score, total: taken.total, wrong: taken.wrong };
+  };
+  function load(key, v) {
+    if (!v || typeof v !== 'object') return;
+    if (key.startsWith('u:') && byUnit.has(key.slice(2))) state.units[key.slice(2)] = merge(state.units[key.slice(2)], clean(v));
+    else if (key === 'resume') state.resume = cleanResume(v) || state.resume;
+    else if (key === 'variant' && typeof v.key === 'string') state.variant = v.key;
+  }
+  for (const u of UNITS) load(`u:${u.id}`, local.get(`u:${u.id}`));
+  load('resume', local.get('resume'));
+  load('variant', local.get('variant'));
+  if (hostStore) {
+    (async () => {
+      try {
+        for (const r of await hostStore.list()) if (r && typeof r.key === 'string') load(r.key, r.value);
+      } catch { return; }
+      // a stored preference for another version reopens the unit on screen in it; otherwise just redraw
+      const u = byUnit.get(current);
+      if (u?.variants && shownId(u) !== shown) route(); else refresh();
+    })();
+  }
   const st = (uid) => (state.units[uid] ||= { frac: 0, done: false, wrong: [] });
   const lessonDone = (l) => l.units.every((u) => state.units[u.id]?.done);
-  const prefs = { get: (k) => local.get('pref:' + k), set: (k, v) => local.set('pref:' + k, v) };
+  // memory first: where localStorage throws, versions of a unit still share speed and captions in the session
+  const prefMem = {};
+  const prefs = { get: (k) => (k in prefMem ? prefMem[k] : local.get('pref:' + k)), set: (k, v) => { prefMem[k] = v; local.set('pref:' + k, v); } };
+  // the version a unit opens in: the course-wide preference when the unit has it, else its first
+  const variantOf = (u, want = state.variant) => u.variants ? (u.variants.find((v) => v.key === want) || u.variants[0]) : null;
+  const shownId = (u, want) => variantOf(u, want)?.id || u.id;
+  const durationOf = (u) => (variantOf(u)?.duration ?? u.duration) || 0;
+  const outlineOf = (u) => variantOf(u)?.outline || u.outline;
+  const lessonDuration = (l) => l.units.reduce((a, u) => a + durationOf(u), 0);
+  function prefer(key) { if (state.variant !== key) { state.variant = key; save('variant', { key }); } }
 
   // ---------- unit instances, created on first visit ----------
   const instances = new Map();
   let current = null;   // uid or '_review'
+  let shown = null;     // the instance id on screen: current, or current~<key> for a unit with variants
   // UNITS holds copies ({...u, lesson}), so look units up by id, never by identity
   function nextOf(u) {
     const sib = u.lesson.units, i = sib.findIndex((x) => x.id === u.id);
@@ -56,12 +106,17 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
     return { label: '確認テストに挑戦する →', primary: true, title: '次は確認テスト',
              note: `${count ? count + ' 問 ・ ' : ''}選ぶだけ ・ 見た直後に解くと記憶に残ります`, auto: 10, run: () => go(`#${n.id}`) };
   }
-  function hostFor(u) {
+  function hostFor(u, vid = u.id) {
+    const key = byVariant.get(vid)?.v.key;
     return {
-      saved: state.units[u.id] || null,
-      setRest(rest) { if (current === u.id) setHash(`#${u.id}${rest ? '/' + rest : ''}`); },
+      get saved() { return state.units[u.id] || null; },
+      setRest(rest) { if (shown === vid) setHash(`#${vid}${rest ? '/' + rest : ''}`); },
       progress(frac) { const s = st(u.id); if (frac > s.frac) { s.frac = frac; save(`u:${u.id}`, s, 3000); } },
-      position(rest) { state.resume = { unit: u.id, rest }; save('resume', state.resume, 500); refresh(); },
+      position(rest) {
+        // the version just switched away from pauses after the switch; the one on screen owns the position
+        if (current === u.id && shown !== vid) return;
+        state.resume = { unit: u.id, rest, ...(key ? { variant: key } : {}) }; save('resume', state.resume, 500); refresh();
+      },
       complete() { const s = st(u.id); if (!s.done) { s.done = true; save(`u:${u.id}`, s); refresh(); } },
       result(r) { const s = st(u.id); Object.assign(s, { score: r.score, total: r.total, wrong: r.wrong }); save(`u:${u.id}`, s); refresh(); },
       endActions() {
@@ -75,13 +130,47 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
       prefs,
     };
   }
-  function instance(uid) {
-    if (!instances.has(uid)) {
-      const u = byUnit.get(uid);
-      const node = document.querySelector(`.su-unit[data-unit="${CSS.escape(uid)}"]`);
-      instances.set(uid, window.YESUnits.kinds[u.kind](node, DATA.unitData[uid], hostFor(u)));
+  function instance(vid) {
+    if (!instances.has(vid)) {
+      const u = byVariant.get(vid)?.unit || byUnit.get(vid);
+      const node = document.querySelector(`.su-unit[data-unit="${CSS.escape(vid)}"]`);
+      instances.set(vid, window.YESUnits.kinds[u.kind](node, DATA.unitData[vid], hostFor(u, vid)));
     }
-    return instances.get(uid);
+    return instances.get(vid);
+  }
+  // same (chapter, scene, line) in the other version, from that line's head; playing stays playing
+  function switchVariant(u, key) {
+    const to = variantOf(u, key);
+    if (!to || to.id === shown) return;
+    const from = instances.get(shown), pos = from?.locate?.();
+    prefer(to.key);
+    from?.hide();
+    shown = to.id;
+    const inst = instance(to.id);
+    inst.show(pos?.started ? pos.at : '');
+    if (pos?.playing) inst.play?.();
+    const now = inst.locate?.();
+    if (now?.started) {
+      const rest = `t=${now.t.toFixed(1)}`;
+      setHash(`#${to.id}/${rest}`);
+      state.resume = { unit: u.id, rest, variant: to.key }; save('resume', state.resume, 500);
+    } else setHash(`#${to.id}`);
+    refresh();
+  }
+  function renderVariants() {
+    const bar = $('cs-variants'), u = byUnit.get(current);
+    bar.textContent = '';
+    bar.hidden = !u?.variants;
+    if (!u?.variants) return;
+    const cur = variantOf(u);
+    const seg = el('div', 'cs-seg'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'バージョン');
+    for (const v of u.variants) {
+      const b = el('button', null, v.label); b.dataset.variant = v.key;
+      b.setAttribute('aria-pressed', String(v.key === cur.key));
+      b.addEventListener('click', () => switchVariant(u, v.key));
+      seg.append(b);
+    }
+    bar.append(el('span', 'cs-seg-label', 'バージョン'), seg);
   }
 
   // ---------- review: one quiz instance over every question still marked wrong ----------
@@ -144,7 +233,8 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
       if (isNow) {
         const sub = el('div', 'cs-sub');
         for (const u of l.units) {
-          if (u.outline.length) for (const o of u.outline) { const ob = el('button', null, o.title); ob.addEventListener('click', () => go(`#${u.id}/${o.rest}`)); sub.append(ob); }
+          const outline = outlineOf(u);
+          if (outline.length) for (const o of outline) { const ob = el('button', null, o.title); ob.addEventListener('click', () => go(`#${shownId(u)}/${o.rest}`)); sub.append(ob); }
           else { const ub = el('button', null, u.kind === 'quiz' ? '確認テスト' : u.title); ub.addEventListener('click', () => go(`#${u.id}`));
                  if (u.id === current) ub.classList.add('now'); const bd = badge(u); if (bd) ub.append(' ', bd); sub.append(ub); }
         }
@@ -153,6 +243,7 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
       ol.append(li);
     });
     side.append(ol);
+    renderVariants();
     if (root.dataset.view === 'home') renderHome();
   }
   function renderHome() {
@@ -172,7 +263,9 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
     const label = r ? (quizOpen(r) && !rest ? `続きから: 確認テスト(${r.lesson.title})` : `続きから: ${r.lesson.title}`)
                     : firstOpen ? `はじめる: ${firstOpen.title}` : '最初から見直す';
     const main = el('button', 'cs-act primary', label);
-    main.addEventListener('click', () => go(r ? `#${r.id}${rest ? '/' + rest : ''}` : `#${(firstOpen || LESSONS[0]).id}`));
+    // a position is a time in the version it was saved in, so 続きから reopens that version
+    const at = r && (r.id === state.resume?.unit ? shownId(r, state.resume.variant) : shownId(r));
+    main.addEventListener('click', () => go(r ? `#${at}${rest ? '/' + rest : ''}` : `#${(firstOpen || LESSONS[0]).id}`));
     acts.append(main);
     const wrong = wrongItems().length;
     if (wrong) { const rb = el('button', 'cs-act', `間違えた問題を復習 (${wrong})`); rb.addEventListener('click', () => go('#review')); acts.append(rb); }
@@ -195,26 +288,30 @@ const lessonDuration = (l) => l.units.reduce((a, u) => a + (u.duration || 0), 0)
     if (credit) box.append(el('p', 'cs-credit', credit));
   }
 
-  // ---------- routing: #home  #review  #<lesson>  #<unit>[/<rest>] ----------
+  // ---------- routing: #home  #review  #<lesson>  #<unit>[~<variant>][/<rest>] ----------
   function setHash(h) { if (location.hash !== h) history.replaceState(null, '', h); }
   function go(h) { if (location.hash !== h) history.pushState(null, '', h); route(); }
   function route() {
     const h = decodeURIComponent(location.hash.slice(1));
     const [key, rest = ''] = h.split(/\/(.*)/s);
-    let target = byUnit.get(key) || null;
+    // a version key the course no longer has opens the unit in the preferred version
+    let target = byUnit.get(key) || byVariant.get(key)?.unit || byUnit.get(key.split('~')[0]) || null;
     if (!target && byLesson.has(key)) {
       const l = byLesson.get(key);
       target = l.units.find((u) => !state.units[u.id]?.done) || l.units[0];
     }
-    for (const [uid, inst] of instances) if (uid !== target?.id) inst.hide();
+    // opening a version (link, 続きから, outline) makes it the preference; a bare unit id opens the preferred one
+    if (byVariant.has(key)) prefer(byVariant.get(key).v.key);
+    const vid = target ? shownId(target) : null;
+    for (const [id, inst] of instances) if (id !== vid) inst.hide();
     $('cs-review').hidden = key !== 'review';
     root.classList.remove('cs-side-open');
-    if (key === 'review') { root.dataset.view = 'unit'; openReview(); refresh(); return; }
-    if (!target) { current = null; root.dataset.view = 'home'; refresh(); return; }
-    current = target.id; root.dataset.view = 'unit';
+    if (key === 'review') { shown = null; root.dataset.view = 'unit'; openReview(); refresh(); return; }
+    if (!target) { current = shown = null; root.dataset.view = 'home'; refresh(); return; }
+    current = target.id; shown = vid; root.dataset.view = 'unit';
     if (rest.endsWith('&shot')) root.classList.add('ev-shot');
     refresh();
-    instance(target.id).show(rest);
+    instance(vid).show(rest);
   }
   $('cs-menu').addEventListener('click', (e) => { e.stopPropagation(); root.classList.toggle('cs-side-open'); });
   document.querySelector('.cs-main').addEventListener('click', (e) => {

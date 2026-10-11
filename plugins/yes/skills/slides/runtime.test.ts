@@ -277,6 +277,22 @@ describe('links to other documents', () => {
     const a = document.querySelector('a')!;
     expect(a.getAttribute('href')).toMatch(/other\.html#3\.1$/);
   });
+
+  it('lets a host page resolve data-page links, and falls back when it declines or throws', () => {
+    const w = window as unknown as { YESHost?: unknown };
+    w.YESHost = { resolveLink: (id: string, hash: string) => (id === 'host' ? { href: `/hosted/${id}${hash}`, target: '_blank' } : null) };
+    try {
+      boot(deck(`<section class="slide"><a id="h" data-page="host#2">x</a><a id="p" data-page="plain.html">y</a></section>`));
+      expect(document.getElementById('h')!.getAttribute('href')).toBe('/hosted/host#2');
+      expect(document.getElementById('h')!.getAttribute('target')).toBe('_blank');
+      expect(document.getElementById('p')!.getAttribute('href')).toBe('plain.html');
+      w.YESHost = { resolveLink: () => { throw new Error('boom'); } };
+      boot(deck(`<section class="slide"><a id="t" data-page="plain.html">y</a></section>`));
+      expect(document.getElementById('t')!.getAttribute('href')).toBe('plain.html');
+    } finally {
+      delete w.YESHost;
+    }
+  });
 });
 
 describe('example.html', () => {

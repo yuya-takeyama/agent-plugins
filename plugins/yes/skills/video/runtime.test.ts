@@ -21,7 +21,7 @@ interface Motion {
   mirrored(side: string, facing?: string): boolean;
   lineAt(lines: Line[], t: number): number;
 }
-type Unit = { show(rest: string): void; hide(): void };
+type Unit = { show(rest: string): void; hide(): void; locate(): { at: string; t: number; started: boolean; playing: boolean } };
 type Win = Window & { EV: { motion: Motion }; YESUnits: { kinds: { video(root: Element, data: unknown, host: unknown): Unit } } };
 const win = () => window as unknown as Win;
 
@@ -338,5 +338,117 @@ describe('video end actions', () => {
     (root.querySelector('.ev-end-go') as HTMLButtonElement).click();
     vi.advanceTimersByTime(11000);
     expect(run).toHaveBeenCalledTimes(1);
+  });
+});
+
+// two chapters; k2 has scenes xa (1 line) and xb (2 lines); `offset` shifts every time after the start
+function twoChapters(offset: number) {
+  document.body.innerHTML = '<div class="su-unit" data-unit="u"><section class="scene" data-scene="x1"></section>'
+    + '<section class="scene" data-scene="xa"></section><section class="scene" data-scene="xb"></section></div>';
+  const root = document.querySelector('.su-unit')!;
+  const ln = (id: string, scene: string, chapter: string, idx: number, start: number): Line =>
+    ({ id, scene, chapter, idx, text: id, start: start + offset, end: start + offset + 1, cues: [] });
+  const data = { title: 'T', goals: [], audio: 'data:audio/wav;base64,', timeline: { duration: 20 + offset,
+    chapters: [{ id: 'k1', title: '一', start: 0, end: 5 + offset }, { id: 'k2', title: '二', start: 5 + offset, end: 20 + offset }],
+    scenes: [{ id: 'x1', chapter: 'k1', kind: 'scene', start: 0, end: 5 + offset }, { id: 'xa', chapter: 'k2', kind: 'scene', start: 5 + offset, end: 8 + offset },
+      { id: 'xb', chapter: 'k2', kind: 'scene', start: 8 + offset, end: 20 + offset }],
+    lines: [ln('x1.0', 'x1', 'k1', 0, 1), ln('xa.0', 'xa', 'k2', 0, 6), ln('xb.0', 'xb', 'k2', 0, 9), ln('xb.1', 'xb', 'k2', 1, 12)] } };
+  const unit = win().YESUnits.kinds.video(root, data, {
+    saved: null, setRest() {}, progress() {}, position() {}, complete() {}, result() {}, endActions: () => [],
+    prefs: { get: () => null, set() {} },
+  });
+  return { root, unit };
+}
+
+describe('positions shared by versions of one video', () => {
+  it('names the line by chapter, scene and line index, and another version opens on that line', () => {
+    const a = twoChapters(0);
+    a.unit.show('t=12.5');
+    expect(a.unit.locate()).toMatchObject({ at: 'at=1.1.1', started: true, playing: false });
+    const b = twoChapters(3);
+    b.unit.show('at=1.1.1');
+    expect(b.unit.locate().t).toBeCloseTo(15.01, 2);
+    expect(b.root.querySelector('.ev-over')!.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('falls back to the chapter head when the version has no such line', () => {
+    const b = twoChapters(3);
+    b.unit.show('at=1.1.7');
+    expect(b.unit.locate().t).toBeCloseTo(8.01, 2);
+    b.unit.show('at=9.0.0');
+    expect(b.unit.locate().t).toBeCloseTo(0.01, 2);
+  });
+
+  it('reports a fresh start screen as not started', () => {
+    const a = twoChapters(0);
+    a.unit.show('');
+    expect(a.unit.locate().started).toBe(false);
+  });
+});
+
+const key = (k: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+const fsBtn = (root: Element) => root.querySelector('.ev-controls .ev-fs') as HTMLButtonElement;
+
+describe('maximize', () => {
+  const restore: (() => void)[] = [];
+  const stub = (obj: object, prop: string, value: unknown) => {
+    const had = Object.getOwnPropertyDescriptor(obj, prop);
+    Object.defineProperty(obj, prop, { configurable: true, writable: true, value });
+    restore.push(() => { if (had) Object.defineProperty(obj, prop, had); else delete (obj as Record<string, unknown>)[prop]; });
+  };
+  beforeEach(() => { while (restore.length) restore.pop()!(); document.documentElement.classList.remove('ev-shot'); });
+
+  it('fills the page when the Fullscreen API is missing, and Esc or the button leaves', () => {
+    stub(Element.prototype, 'requestFullscreen', undefined);
+    stub(Element.prototype, 'webkitRequestFullscreen', undefined);
+    const { root, unit } = twoChapters(0);
+    unit.show('');
+    expect(fsBtn(root).getAttribute('aria-label')).toBe('全画面');
+    key('f');
+    expect(root.classList.contains('ev-full') && root.classList.contains('ev-pseudo')).toBe(true);
+    expect(fsBtn(root).getAttribute('aria-label')).toBe('全画面を終了');
+    key('Escape');
+    expect(root.classList.contains('ev-full')).toBe(false);
+    fsBtn(root).click();
+    expect(root.classList.contains('ev-pseudo')).toBe(true);
+    fsBtn(root).click();
+    expect(root.classList.contains('ev-full')).toBe(false);
+  });
+
+  it('asks the Fullscreen API for the player and follows fullscreenchange', async () => {
+    let fsEl: Element | null = null;
+    stub(document, 'fullscreenEnabled', true);
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fsEl });
+    restore.push(() => { delete (document as unknown as Record<string, unknown>).fullscreenElement; });
+    stub(document, 'exitFullscreen', () => { fsEl = null; document.dispatchEvent(new Event('fullscreenchange')); return Promise.resolve(); });
+    const { root, unit } = twoChapters(0);
+    stub(root, 'requestFullscreen', () => { fsEl = root; document.dispatchEvent(new Event('fullscreenchange')); return Promise.resolve(); });
+    unit.show('');
+    fsBtn(root).click();
+    await Promise.resolve();
+    expect(fsEl).toBe(root);
+    expect(root.classList.contains('ev-full') && !root.classList.contains('ev-pseudo')).toBe(true);
+    // leaving the unit (the host moving on) leaves fullscreen first
+    unit.hide();
+    expect(fsEl).toBeNull();
+    expect(root.classList.contains('ev-full')).toBe(false);
+  });
+
+  it('falls back to filling the page when the browser refuses', async () => {
+    stub(document, 'fullscreenEnabled', true);
+    stub(Element.prototype, 'requestFullscreen', () => Promise.reject(new TypeError('denied')));
+    const { root, unit } = twoChapters(0);
+    unit.show('');
+    key('f');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(root.classList.contains('ev-pseudo')).toBe(true);
+  });
+
+  it('stays off in the screenshot mode', () => {
+    stub(Element.prototype, 'requestFullscreen', undefined);
+    const { root, unit } = twoChapters(0);
+    unit.show('t=2&shot');
+    key('f');
+    expect(root.classList.contains('ev-full')).toBe(false);
   });
 });

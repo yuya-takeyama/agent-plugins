@@ -65,7 +65,11 @@ The dialogue adds these rules:
 
 ### The opening (つかみ)
 
-Open with a short exchange connected to the topic. Avoid an unrelated skit that delays the explanation.
+The genre never starts on the lesson. In 22 popular ずんだもん / ゆっくり
+解説 videos the main topic began a median 49 s in; how-to guides for these
+scripts ask for 3–5 lines and under 30 s. A video that opens on the first
+explanatory sentence feels abrupt. A long skit unrelated to the topic is the
+most common viewer complaint, so the つかみ is short and about the topic.
 
 Its own first scene (`<ch>-0`), 5–7 lines, 20–35 s, in this order:
 
@@ -78,7 +82,8 @@ Its own first scene (`<ch>-0`), 5–7 lines, 20–35 s, in this order:
 | 5 | めたん | title call and goal: 「今回は〜を解説するわ。見終わるころには〜」 | smile / normal |
 | 6 | ずんだもん | the misreading hook, which the next scene starts correcting | smile |
 
-- Avoid repeating introductions in every course lesson. Open with a 呼びかけ.
+- No 名乗り (「どうも、ずんだもんなのだ」): 3 of the 22 videos used one, and in a
+  course it repeats every lesson. Open with a 呼びかけ instead.
 - No spoken table of contents; the chapter bar does that. No
   「ゆっくりしていってね」 equivalent; the misreading is the cue.
 - The best skit acts out the misconception itself. In the 論理哲学論考 video

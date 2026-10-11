@@ -1,19 +1,25 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["budoux>=0.6", "imageio-ffmpeg>=0.5", "playwright>=1.50"]
+# dependencies = ["budoux>=0.6", "imageio-ffmpeg>=0.5", "playwright>=1.50", "fonttools>=4.50", "brotli>=1.1"]
 # ///
 """Build a narrated explainer video: a standalone HTML page, or a YESUnits unit for a course.
 
     uv run build.py lint  <project>   # script checks only, no synthesis
     uv run build.py build <project>   # synth (cached) -> timeline -> captions -> out/video.html
     uv run build.py shoot <project> [--at end|start|mid] [--only s3,s4]
+    uv run build.py check <project>   # e2e in headless Chrome on out/video.html: maximize (F / button / Esc, fallback)
     uv run build.py unit  <project> --id ID --out DIR [--bitrate 32k]   # unit bundle for course
+    uv run build.py tts-plan <project>  # out/tts-plan.json: the sentences YES_TTS_FILES still needs as WAV files
 
 <project>/script.json   narration, chapters, scenes, quizzes (see SKILL.md)
 <project>/scenes.html   one <section class="scene" data-scene="ID"> per non-quiz scene
 <project>/readings.json optional {"surface": "reading"} merged over the skill's readings.json
 
-EV_TTS_CMD overrides the synthesis command (default bundled `yes-speak`).
+Speech comes from the bundled `yes-speak` (Docker VOICEVOX) unless:
+  YES_TTS_CMD     a command with the yes-speak contract (EV_TTS_CMD is an alias)
+  YES_TTS_FILES=1 the agent writes the WAVs listed by `tts-plan` (e.g. from an MCP tool)
+  YES_TTS_ENGINE  voicevox | other: what YES_TTS_CMD / YES_TTS_FILES produce (a command defaults to voicevox)
+  YES_TTS_SPEAKERS  the engine's speaker list as JSON, for a cast with YES_TTS_FILES
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ import os
 import hashlib
 import html
 import json
+import io
 import re
 import shlex
 import shutil
@@ -33,6 +40,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 import wave
 from urllib.parse import urlsplit
 from array import array
@@ -83,6 +91,7 @@ def load_project(root: Path) -> tuple[dict, dict, list[dict], list[dict]]:
     if (root / "readings.json").exists():
         readings.update(json.loads((root / "readings.json").read_text()))
     cast = load_cast(script)
+    KEEP_WHOLE.update(w for w in [*readings, *(m["name"] for m in cast)] if len(w) > 1)
     return script, readings, cast, flatten(script, [m["id"] for m in cast])
 
 
@@ -100,9 +109,10 @@ def load_cast(script: dict) -> list[dict]:
             if not (raw.get("id") and raw.get("speaker")):
                 die(f"inline cast member needs id and speaker: {raw!r}")
             cast.append({"id": raw["id"], "name": raw.get("name", raw["speaker"]), "speaker": raw["speaker"], "color": raw.get("color")})
-    for member in cast:
-        if member["speaker"] not in SUPPORTED_VOICES:
-            die("YES supports only ずんだもん and 四国めたん in the cast.")
+    if licensed():
+        for member in cast:
+            if member["speaker"] not in SUPPORTED_VOICES:
+                die("YES supports only ずんだもん and 四国めたん as VOICEVOX voices in the cast.")
     return cast
 
 
@@ -249,17 +259,54 @@ def cast_errors(lines: list[dict], cast: list[dict], styles: dict | None) -> lis
 
 # ---------- voices ----------
 
+def backend() -> dict:
+    """Where speech comes from. `engine` voicevox puts the VOICEVOX voice restriction, credits and terms on it."""
+    cmd = os.environ.get("YES_TTS_CMD") or os.environ.get("EV_TTS_CMD") or ""
+    files = os.environ.get("YES_TTS_FILES", "") not in ("", "0")
+    engine = os.environ.get("YES_TTS_ENGINE", "")
+    if engine not in ("", "voicevox", "other"):
+        die("YES_TTS_ENGINE must be voicevox or other.")
+    if cmd and files:
+        die("Set YES_TTS_CMD or YES_TTS_FILES, not both.")
+    if files and not engine:
+        die("YES_TTS_FILES needs YES_TTS_ENGINE=voicevox or YES_TTS_ENGINE=other.")
+    if cmd:
+        # VOICEVOX unless declared otherwise: dropping its rules takes an explicit YES_TTS_ENGINE=other
+        return {"kind": "cmd", "engine": engine or "voicevox", "cmd": shlex.split(cmd), "id": cmd}
+    if files:
+        return {"kind": "files", "engine": engine, "cmd": None, "id": "files:" + engine}
+    if engine == "other":
+        die("YES_TTS_ENGINE=other needs YES_TTS_CMD or YES_TTS_FILES; the bundled engine is VOICEVOX.")
+    return {"kind": "bundled", "engine": "voicevox", "id": "bundled",
+            "cmd": [sys.executable, str(SKILL_DIR.parents[1] / "scripts" / "yes_speak.py")]}
+
+
+def licensed() -> bool:
+    """True when the audio is VOICEVOX, whose voices and terms YES enforces whichever way it is produced."""
+    return backend()["engine"] == "voicevox"
+
+
 def tts_cmd() -> list[str]:
-    return shlex.split(os.environ["EV_TTS_CMD"]) if os.environ.get("EV_TTS_CMD") else [sys.executable, str(SKILL_DIR.parents[1] / "scripts" / "yes_speak.py")]
+    cmd = backend()["cmd"]
+    if not cmd:
+        die("YES_TTS_FILES runs no command; write the files listed by `build.py tts-plan`.")
+    return cmd
 
 
 def list_speakers() -> list[dict]:
-    """`<tts> --list-speakers --json`: [{name, styles: [{name, id, type}], credit}]."""
-    r = subprocess.run([*tts_cmd(), "--list-speakers", "--json"], capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError(r.stderr.strip() or f"exit {r.returncode}")
-    result = [sp for sp in json.loads(r.stdout) if sp["name"] in SUPPORTED_VOICES]
-    if not os.environ.get("EV_TTS_CMD"):
+    """`<tts> --list-speakers --json` (or YES_TTS_SPEAKERS): [{name, styles: [{name, id, type}], credit}]."""
+    if backend()["kind"] == "files":
+        path = os.environ.get("YES_TTS_SPEAKERS")
+        if not path:
+            raise RuntimeError("YES_TTS_FILES needs YES_TTS_SPEAKERS, the engine's speaker list as JSON")
+        result = json.loads(Path(path).read_text())
+    else:
+        r = subprocess.run([*tts_cmd(), "--list-speakers", "--json"], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.strip() or f"exit {r.returncode}")
+        result = json.loads(r.stdout)
+    if licensed():
+        result = [sp for sp in result if sp["name"] in SUPPORTED_VOICES]
         for speaker in result:
             speaker.update(voice_policy(speaker["name"]))
     return result
@@ -286,20 +333,21 @@ def narration_credit(script: dict) -> str:
     credit = script.get("credit")
     if isinstance(credit, str) and credit.strip():
         return credit.strip()
-    if os.environ.get("EV_TTS_CMD"):
-        die('A single-narrator script using EV_TTS_CMD needs a nonempty "credit".')
+    if not licensed():
+        die('A single-narrator script with YES_TTS_ENGINE=other needs a nonempty "credit".')
     return "VOICEVOX:ずんだもん"
 
 
 def terms_for(script: dict, cast: list[dict], lines: list[dict], speakers: list[dict]) -> dict:
     art = [m["char"].get("source", {}) for m in cast if "char" in m]
-    if os.environ.get("EV_TTS_CMD"):
+    if not licensed():
         terms = script.get("usageTerms", usage_notice([], art) if art else {})
     else:
         used = {m["speaker"] for m in cast if any(ln["who"] == m["id"] for ln in lines)}
         voiced = [sp for sp in speakers if sp["name"] in used] if cast else [
             {"name": "ずんだもん", **voice_policy("ずんだもん")}]
-        terms = usage_notice(voiced, art)
+        # only the bundled engine's version is known; another VOICEVOX gets the current terms
+        terms = usage_notice(voiced, art, pinned=backend()["kind"] == "bundled")
     if not isinstance(terms, dict) or not isinstance(terms.get("text", ""), str):
         die("usageTerms must be an object with text and optional links.")
     if terms and not terms.get("text", "").strip():
@@ -309,26 +357,89 @@ def terms_for(script: dict, cast: list[dict], lines: list[dict], speakers: list[
     return terms
 
 
+# ---------- caption font ----------
+
+# The dialogue captions carry a thick outline; an angular fallback face spikes at its corners, so the
+# rounded face the captions are designed for is embedded, cut down to the characters the captions use.
+CAPTION_FONT = {
+    "family": "M PLUS Rounded 1c",
+    "url": "https://raw.githubusercontent.com/google/fonts/7d1c962b6fbc8987b59ed229bbe5c12764d3a624/ofl/mplusrounded1c/MPLUSRounded1c-ExtraBold.ttf",
+    "sha256": "8e7c15901dca87f1451b356dda594f7d092ba252a5dcc47da74523a242493c36",
+}
+FONT_CACHE = Path(os.environ.get("YES_FONT_CACHE", Path.home() / ".cache" / "yes" / "fonts"))
+
+
+def caption_font_file() -> Path | None:
+    path = FONT_CACHE / Path(CAPTION_FONT["url"]).name
+    if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != CAPTION_FONT["sha256"]:
+        path.unlink()
+    if not path.exists():
+        try:
+            FONT_CACHE.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(CAPTION_FONT["url"], timeout=60) as r:
+                body = r.read()
+        except OSError as e:
+            print(f"warn: caption font download failed ({e}); captions use the system font")
+            return None
+        if hashlib.sha256(body).hexdigest() != CAPTION_FONT["sha256"]:
+            print("warn: caption font checksum mismatch; captions use the system font")
+            return None
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(body)
+        os.replace(tmp, path)
+    return path
+
+
+def caption_font_css(texts: list[str], family: str) -> str:
+    """An @font-face for `family` holding only the glyphs of `texts`, as WOFF2 in a data: URI ('' without the font)."""
+    src = caption_font_file()
+    if src is None:
+        return ""
+    from fontTools import subset
+
+    chars = "".join(sorted(set("".join(texts)) | set("…ー。、！？「」（）")))
+    opts = subset.Options()
+    opts.flavor = "woff2"
+    opts.layout_features = ["*"]
+    font = subset.load_font(str(src), opts)
+    sub = subset.Subsetter(opts)
+    sub.populate(text=chars)
+    sub.subset(font)
+    buf = io.BytesIO()
+    subset.save_font(font, buf, opts)
+    data = base64.b64encode(buf.getvalue()).decode()
+    return (f'@font-face{{font-family:"{family}";font-weight:800;font-display:block;'
+            f'src:url(data:font/woff2;base64,{data}) format("woff2")}}')
+
+
 # ---------- synthesis ----------
 
 def cache_key(spoken: str, speed: float, style_id: int | None) -> str:
     # Include backend identity so a provider change never reuses incompatible audio.
     src = f"{speed}|{spoken}" if style_id is None else f"{style_id}|{speed}|{spoken}"
-    src = "yes-voicevox-0.25.2|" + os.environ.get("EV_TTS_CMD", "bundled") + "|" + src
+    src = "yes-voicevox-0.25.2|" + backend()["id"] + "|" + src
     return hashlib.sha1(src.encode()).hexdigest()[:16]
 
 
-def synth(lines: list[dict], readings: dict, cache: Path, speed: float) -> dict[str, Path]:
-    cache.mkdir(parents=True, exist_ok=True)
-    tts = tts_cmd()
+def synth_jobs(lines: list[dict], readings: dict, cache: Path, speed: float) -> dict[str, tuple[str, int | None, Path]]:
     jobs = {}
     for ln in lines:
         spoken = reading_of(ln, readings)
         style_id = ln.get("style_id")
         jobs[ln["id"]] = (spoken, style_id, cache / f"{cache_key(spoken, speed, style_id)}.wav")
+    return jobs
 
+
+def synth(lines: list[dict], readings: dict, cache: Path, speed: float) -> dict[str, Path]:
+    cache.mkdir(parents=True, exist_ok=True)
+    jobs = synth_jobs(lines, readings, cache, speed)
     todo = {p: (s, sid) for s, sid, p in jobs.values() if not p.exists()}
     print(f"synth: {len(jobs)} lines, {len(todo)} new")
+    if backend()["kind"] == "files":
+        if todo:
+            die(f"{len(todo)} sentences have no audio yet: run `build.py tts-plan <project>`, write each listed WAV, then build again.")
+        return {lid: p for lid, (_, _, p) in jobs.items()}
+    tts = tts_cmd()
 
     def run(item):
         path, (spoken, style_id) = item
@@ -507,9 +618,30 @@ def timeline(script: dict, timed: list[dict], duration: float) -> dict:
     return {"duration": duration, "chapters": chapters, "scenes": scenes, "lines": lines}
 
 
+# Words a caption never breaks inside: BudouX splits some names (ずんだも|ん). Extended per project
+# with the cast's names and the readings' surfaces.
+KEEP_WHOLE = {"ずんだもん", "四国めたん", "めたん"}
+
+
 def wbr(text: str) -> str:
-    """Escape and allow line breaks only between BudouX phrases."""
-    return "<wbr>".join(html.escape(p) for p in parser_ja.parse(text))
+    """Escape and allow line breaks only between BudouX phrases, never inside a KEEP_WHOLE word."""
+    cuts, pos = [], 0
+    for phrase in parser_ja.parse(text)[:-1]:
+        pos += len(phrase)
+        cuts.append(pos)
+    inside = set()
+    for word in KEEP_WHOLE:
+        i = text.find(word)
+        while i >= 0:
+            inside.update(range(i + 1, i + len(word)))
+            i = text.find(word, i + 1)
+    out, last = [], 0
+    for cut in cuts:
+        if cut not in inside:
+            out.append(text[last:cut])
+            last = cut
+    out.append(text[last:])
+    return "<wbr>".join(html.escape(p) for p in out)
 
 
 def quiz_section(scene_id: str, timed: list[dict]) -> str:
@@ -524,25 +656,41 @@ def quiz_section(scene_id: str, timed: list[dict]) -> str:
     )
 
 
+def resolve_voices(cast: list[dict], lines: list[dict]) -> list[dict]:
+    """Give each line its style id and return the engine's speakers (none for the bundled single narrator)."""
+    b = backend()
+    # a VOICEVOX narrator from another command or from files is named, never left to that engine's default voice
+    need = bool(cast) or (licensed() and b["kind"] in ("cmd", "files"))
+    if not need:
+        return []
+    try:
+        speakers = list_speakers()
+    except (OSError, RuntimeError, ValueError) as e:
+        die(f"speaker list failed: {e}")
+    styles = style_ids(speakers)
+    if not cast:
+        sid = styles.get(("ずんだもん", "ノーマル"))
+        if sid is None:
+            die("the speaker list has no ずんだもん ノーマル style")
+        for ln in lines:
+            ln["style_id"] = sid
+        return speakers
+    errs = cast_errors(lines, cast, styles)
+    if errs:
+        die("\n".join(errs))
+    speaker_of = {m["id"]: m["speaker"] for m in cast}
+    for ln in lines:
+        ln["style_id"] = styles[(speaker_of[ln["who"]], ln["style"])]
+    return speakers
+
+
 def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
     """Synthesize, time and caption the video; write the unit bundle to `out` and return unit.json."""
     script, readings, cast, lines = load_project(root)
     if errs := source_errors(script.get("sources", [])):
         die("\n".join(errs))
     credit = narration_credit(script) if not cast else None
-    speakers: list[dict] = []
-    if cast:
-        try:
-            speakers = list_speakers()
-        except (OSError, RuntimeError, ValueError) as e:
-            die(f"{shlex.join(tts_cmd())} --list-speakers --json failed: {e}")
-        styles = style_ids(speakers)
-        errs = cast_errors(lines, cast, styles)
-        if errs:
-            die("\n".join(errs))
-        speaker_of = {m["id"]: m["speaker"] for m in cast}
-        for ln in lines:
-            ln["style_id"] = styles[(speaker_of[ln["who"]], ln["style"])]
+    speakers = resolve_voices(cast, lines)
     terms = terms_for(script, cast, lines, speakers)
     out.mkdir(parents=True, exist_ok=True)
     wavs = synth(lines, readings, TTS_CACHE, float(script.get("speed", 1.0)))
@@ -569,8 +717,16 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
     if declared - wanted:
         print(f"warn: scenes.html has unused sections: {', '.join(sorted(declared - wanted))}")
     quizzes = "".join(quiz_section(s["id"], timed) for s in tl["scenes"] if s["kind"] == "quiz")
+    font_css = ""
+    if cast:
+        # one family per unit: a course page holds several videos, each with its own subset
+        tag = hashlib.sha1(uid.encode()).hexdigest()[:10]
+        face = caption_font_css([ln["text"] for ln in timed], f"yes-cap-{tag}")
+        if face:
+            font_css = f'<style>{face}[data-cap="{tag}"]{{--ev-cap-font:"yes-cap-{tag}"}}</style>\n'
+    cap_attr = f' data-cap="{tag}"' if font_css else ""
     (out / "unit.html").write_text(
-        f'<div class="su-unit" data-unit="{html.escape(uid)}" data-kind="video" hidden>\n{scenes_html}\n{quizzes}\n</div>\n')
+        f'<div class="su-unit" data-unit="{html.escape(uid)}" data-kind="video"{cap_attr} hidden>\n{font_css}{scenes_html}\n{quizzes}\n</div>\n')
     for f in ("runtime.js", "runtime.css"):
         shutil.copy(SKILL_DIR / f, out / f)
     data = {"title": script.get("title", ""), "kicker": script.get("subtitle", ""), "goals": script.get("goals", [])}
@@ -581,7 +737,7 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         data["credit"] = credit
     if script.get("sources"):
         data["sources"] = [{k: s[k] for k in ("title", "url", "note") if s.get(k)} for s in script["sources"]]
-    if not cast and not os.environ.get("EV_TTS_CMD"):
+    if not cast and licensed():
         # A custom attribution must not replace the bundled narrator's required credit.
         data["credits"] = list(dict.fromkeys([voice_policy("ずんだもん")["credit"], credit]))
     data["usageTerms"] = terms
@@ -646,12 +802,36 @@ def cmd_lint(root: Path) -> None:
     try:
         styles = style_ids(list_speakers())
     except (OSError, RuntimeError, ValueError) as e:
-        print(f"warn: {shlex.join(tts_cmd())} --list-speakers --json failed ({e}); style names not checked")
+        print(f"warn: speaker list failed ({e}); style names not checked")
     errs = cast_errors(lines, cast, styles)
     for e in errs:
         print(f"error: {e}")
     if errs:
         sys.exit(1)
+
+
+def cmd_tts_plan(root: Path) -> None:
+    """List every sentence that has no audio yet, with the file the build will read it from."""
+    script, readings, cast, lines = load_project(root)
+    resolve_voices(cast, lines)
+    speed = float(script.get("speed", 1.0))
+    TTS_CACHE.mkdir(parents=True, exist_ok=True)
+    jobs = synth_jobs(lines, readings, TTS_CACHE, speed)
+    speaker_of = {m["id"]: m["speaker"] for m in cast}
+    narrator = "ずんだもん" if licensed() else None
+    items, seen = [], set()
+    for ln in lines:
+        spoken, style_id, path = jobs[ln["id"]]
+        if path.exists() or path in seen:
+            continue
+        seen.add(path)
+        items.append({"file": str(path), "text": spoken, "speaker": speaker_of.get(ln.get("who"), narrator),
+                      "style": ln.get("style", "ノーマル"), "style_id": style_id, "speed": speed})
+    plan = {"engine": backend()["engine"], "format": "WAV, 24000 Hz, mono, 16-bit", "items": items}
+    out = root / "out" / "tts-plan.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(plan, ensure_ascii=False, indent=1))
+    print(f"{len(items)} sentences to synthesize -> {out}")
 
 
 def cmd_build(root: Path) -> None:
@@ -697,9 +877,31 @@ def cmd_shoot(root: Path, at: str, only: set[str] | None) -> None:
         browser.close()
 
 
+def cmd_check(root: Path) -> None:
+    """Drive the built page: maximize and restore, with and without the Fullscreen API; frames in out/frames/_full-*.png."""
+    from playwright.sync_api import sync_playwright
+    from maximize_check import check_maximize
+
+    tl = json.loads((root / "out" / "unit.json").read_text())["data"]["timeline"]
+    url = (root / "out" / "video.html").resolve().as_uri() + f"#t={tl['duration'] / 2:.1f}"
+    fails: list[str] = []
+
+    def expect(ok: bool, what: str) -> None:
+        print(("ok   " if ok else "FAIL ") + what)
+        if not ok:
+            fails.append(what)
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(channel=os.environ.get("YES_BROWSER_CHANNEL", "chrome") or None, args=["--autoplay-policy=no-user-gesture-required"])
+        check_maximize(browser, url, ".su-unit.ev-video", expect, root / "out" / "frames")
+        browser.close()
+    if fails:
+        die(f"{len(fails)} check(s) failed")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["lint", "build", "shoot", "unit"])
+    ap.add_argument("cmd", choices=["lint", "build", "shoot", "unit", "check", "tts-plan"])
     ap.add_argument("project", type=Path)
     ap.add_argument("--at", default="end", choices=["start", "mid", "end"])
     ap.add_argument("--only")
@@ -715,6 +917,10 @@ def main() -> None:
     elif a.cmd == "build":
         cmd_build(root)
         export(root / "out" / "video.html", a.format, a.max_bytes)
+    elif a.cmd == "check":
+        cmd_check(root)
+    elif a.cmd == "tts-plan":
+        cmd_tts_plan(root)
     elif a.cmd == "unit":
         if not (a.id and a.out):
             die("unit needs --id and --out")

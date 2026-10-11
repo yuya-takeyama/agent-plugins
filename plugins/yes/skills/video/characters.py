@@ -9,7 +9,7 @@
 
 characters/<id>.json defines the source, scale, base layers and faces (see SKILL.md).
 The PSD and every exported PNG live under $EV_CHAR_CACHE (default
-~/.cache/video/characters/<id>/) and never in git: the artist allows use
+~/.cache/yes/characters/<id>/) and never in git: the artist allows use
 in videos but does not grant redistribution of the material.
 
 build.py imports cast_entry(), which needs only the standard library.
@@ -37,7 +37,7 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent
 DEFS_DIR = SKILL_DIR / "characters"
-CACHE = Path(os.environ.get("EV_CHAR_CACHE", Path.home() / ".cache" / "video" / "characters"))
+CACHE = Path(os.environ.get("EV_CHAR_CACHE", Path.home() / ".cache" / "yes" / "characters"))
 REQUIRED_FACES = ("normal", "smile", "surprised", "troubled", "jito", "panic", "think", "angry", "cry")
 MOUTH_NAMES = ("closed", "half", "open")
 

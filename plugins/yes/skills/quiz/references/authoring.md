@@ -29,6 +29,8 @@ uv run $S/build.py unit  quiz.json --id ai-quiz --out DIR   # unit bundle (cours
   「この変更で何に気をつける？」. Never test meta: which lesson or category
   covers something, how or when it was announced, dates, counts.
 - Answerable from the material it follows; nothing the learner was not shown.
+- Terms of art in the same form as the material (`<PLUGIN>/references/terms-ja.md`):
+  katakana, Japanese, or English + gloss — never a fresh translation in a choice.
 - 4 choices, all plausible to someone who half-understood. Vary the answer
   position (lint warns when every answer sits in the same slot).
 - Every question has a `why`: one or two sentences on why the right answer
