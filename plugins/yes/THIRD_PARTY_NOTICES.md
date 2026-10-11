@@ -63,11 +63,17 @@ general-purpose asset pack. Do not apply YES's MIT license to these assets.
 
 ## Dependencies and provenance
 
-Python build dependencies: BudouX, imageio-ffmpeg, Playwright; optional art tooling:
-psd-tools and Pillow. JavaScript development dependencies: Vitest and happy-dom.
-They are installed separately and retain their own licenses. System fonts are
-used; no third-party font files are redistributed.
+Python build dependencies: BudouX, imageio-ffmpeg, Playwright, fontTools, Brotli;
+optional art tooling: psd-tools and Pillow. JavaScript development dependencies:
+Vitest and happy-dom. They are installed separately and retain their own licenses.
 
-The HTML video, quiz, course, and slides tools were extracted from Yuya Takeyama's
-Stash project. The diagramming, dataviz, and design skills, their reference files,
-and palette validator are intentionally not included or required.
+## Caption font
+
+Dialogue videos embed a subset of **M PLUS Rounded 1c ExtraBold**
+(Copyright 2016 The M+ Project Authors), licensed under the
+[SIL Open Font License 1.1](https://openfontlicense.org/). The build downloads
+it from the [Google Fonts repository](https://github.com/google/fonts/tree/7d1c962b6fbc8987b59ed229bbe5c12764d3a624/ofl/mplusrounded1c)
+at a pinned commit, verifies its SHA-256, and embeds only the glyphs the
+captions use. The font is not stored in this repository. The OFL permits
+embedding the subset in documents; the subset keeps the font's name and
+license. Other text uses system fonts.

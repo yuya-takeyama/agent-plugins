@@ -23,3 +23,8 @@ otherwise the output is one HTML file. `--max-bytes N` optionally enforces a hos
 
 Run `shoot` and `check` after building. Progress is local to the browser and may
 be unavailable in sandboxed viewers; it is not a server-backed learner account.
+A host page that offers its own store can keep progress there: pass
+`--host-script FILE` defining `window.YESHost.storage` (see the authoring guide).
+
+Plan the lessons, brief one writer per lesson with `lesson-brief.md`, and edit
+the drafts before building; the orchestration steps are in the authoring guide.

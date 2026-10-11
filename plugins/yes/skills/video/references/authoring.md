@@ -17,6 +17,8 @@ S='/absolute/path/to/plugin/skills/video'
 uv run $S/build.py lint  <project>    # script checks, no audio (seconds)
 uv run $S/build.py build <project>    # audio (cached per sentence) → out/video.html
 uv run $S/build.py shoot <project>    # out/frames/<scene>.png, then LOOK at them
+uv run $S/build.py check <project>    # e2e on out/video.html (maximize); every line must say ok
+uv run $S/build.py tts-plan <project> # YES_TTS_FILES only: out/tts-plan.json, the WAVs still to write
 uv run $S/build.py unit  <project> --id ai-video --out DIR   # unit bundle (course calls this)
 ```
 
@@ -90,6 +92,18 @@ in the script.
     concrete example → mechanism, built up step by step → name it → pitfall
     → one-sentence summary → quiz.
   - Open the video with a misconception and resolve it later.
+  - Give every term of art one form, chosen by how Japanese engineers
+    write it (method and seed glossary: `<PLUGIN>/references/terms-ja.md`),
+    and use it in captions, board, quiz and goals alike:
+    - established katakana (フォールバック, コントロールプレーン, ドレイン):
+      katakana alone. An added English word or gloss only gets in the way.
+    - established Japanese (静的安定性, グレー障害, 複合アラーム): Japanese alone.
+    - a named concept whose only Japanese reads like an ordinary word or
+      has no settled form (constant work = 一定の作業, blast radius = 影響範囲,
+      bake time): the English, spoken in katakana, with a short gloss of
+      what it is on first mention (`constant work（負荷に関係なく常に同じ量の
+      仕事をする設計）`). A bare translation hides that it is a concept.
+      The `reading` speaks the English in katakana; the caption shows it.
 
 ### Dialogue (cast)
 
@@ -121,8 +135,37 @@ A script with `"cast"` becomes a dialogue video (authoring guide:
   runs over two lines.
 - The page credits every voiced character and the art source itself
   (`data.credits`); the script's `"credit"` is ignored.
-- `EV_TTS_CMD` replaces `yes-speak` (e.g. a fake for tests).
+- `YES_TTS_CMD` / `EV_TTS_CMD` replaces `yes-speak` (e.g. a fake for tests).
   `uv run test_build.py` runs the build's unit tests.
+- Dialogue captions embed their font: M PLUS Rounded 1c ExtraBold (OFL),
+  fetched once into `~/.cache/yes/fonts/` (`YES_FONT_CACHE`), checked by
+  SHA-256, and cut down to the characters the captions use (tens of KB). The
+  thick caption outline needs a rounded face; an angular fallback spikes at
+  its corners. If the download fails the build warns and uses system fonts.
+
+## Speech sources
+
+| Source | Set | VOICEVOX rules |
+|---|---|---|
+| bundled Docker engine | nothing | always |
+| a command | `YES_TTS_CMD` (alias `EV_TTS_CMD`), optional `YES_TTS_ENGINE` | when `YES_TTS_ENGINE=voicevox` |
+| files written by the agent | `YES_TTS_FILES=1`, `YES_TTS_ENGINE`, `YES_TTS_SPEAKERS` for a cast | when `YES_TTS_ENGINE=voicevox` |
+
+- A command takes `--text T -o FILE --force --speed S [--speaker STYLE_ID]`
+  and writes a 24000 Hz mono 16-bit WAV; `--list-speakers --json` prints
+  `[{name, styles: [{name, id, type}], credit?}]`.
+- VOICEVOX rules: only ずんだもん and 四国めたん (any talk style); a single
+  narrator is ずんだもん by its style id, never the engine's default; the
+  page credits each voice and links the engine, model and voice terms (the
+  bundled engine's pinned versions, otherwise the current terms).
+- Files: run `tts-plan`; it writes `out/tts-plan.json`
+  `{engine, format, items: [{file, text, speaker, style, style_id, speed}]}`
+  for every sentence without audio. Synthesize each `text` with that voice
+  and speed and write the WAV to `file`, then `build`. `build` never
+  synthesizes in this mode and stops while any file is missing. For a cast,
+  `YES_TTS_SPEAKERS` is the engine's speaker list in the format above.
+- The cache key includes the source, so audio from one source never stands
+  in for another.
 
 ## scenes.html
 
@@ -178,6 +221,10 @@ optional `<style>` for video-specific CSS, then the sections:
    readings.json → rebuild (only that line is re-synthesized).
 5. Read the transcript (`out/transcript.md`) alone: does the argument stand
    without the screen?
+6. `check` (player e2e); it leaves `out/frames/_full-*.png`, the maximized
+   player on desktop, phone upright and sideways, and without the API.
+7. `uv run <PLUGIN>/scripts/check_mobile.py out/video.html`: nothing may make
+   the page scroll sideways on a phone.
 
 Outputs besides the page: `out/captions.vtt`, `out/unit.json` (timeline),
 `out/transcript.md`, `out/unit/narration.m4a` — reusable for an mp4 later.
@@ -192,7 +239,16 @@ countdown; the viewer can also choose 「とどまる」. Replay and other actio
 remain available. Portrait phones show this screen outside the scaled stage
 so its buttons remain readable. Space play/pause, ←/→ previous
 /next sentence, Shift+←/→ chapter, J/L ±5 s, C captions, T transcript,
-`<`/`>` speed 0.75–2×. Click a transcript sentence to jump. Deep links:
+`<`/`>` speed 0.75–2×, F maximize. Click a transcript sentence to jump.
+Maximize (the corner button at the end of the controls, or F; Esc or the
+button again leaves) puts the stage, captions and controls in fullscreen
+through the Fullscreen API, the stage at its largest 16:9 on the page
+background; the description is left out and the controls fade while playing
+until the pointer moves. Without element fullscreen (iPhone Safari) or when
+the browser refuses, the player fills the page instead (`position: fixed`, in
+front of a course's outline and version switch). A host action from the end
+screen (next video, quiz) leaves it before moving on; the shot mode never
+offers it. Deep links:
 `#t=12.3`, `#<chapter-id>` (inside a course: `#<unit-id>/t=12.3`).
 Pausing writes the position into the hash so a reload resumes there. On
 portrait phones captions move below the stage at readable size.
@@ -205,7 +261,7 @@ panic think angry cry`, each with a `[closed, half, open]` mouth and a blink
 eye layer. `facing` (`left` / `right`) is the way the art looks as drawn,
 seen by the viewer; the player mirrors a character whose `facing` points away
 from the stage centre, so the two face each other. The `zundamon-video` skill uses both standing characters by default. Inline cast members are for requested voice-only dialogue or additional off-screen voices. Read ../../../THIRD_PARTY_NOTICES.md before using art. The PSDs and exported parts stay out of git; they are fetched into
-`~/.cache/video/characters/<id>/` (`EV_CHAR_CACHE`).
+`~/.cache/yes/characters/<id>/` (`EV_CHAR_CACHE`).
 
 ```bash
 uv run characters.py fetch metan            # download + MD5 check + export; no-op once cached

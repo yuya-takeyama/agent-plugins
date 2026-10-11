@@ -69,7 +69,8 @@ Codex is format-level until listed as tested in [compatibility](../../docs/compa
 - Google Chrome for screenshots, or Playwright Chromium with
   `YES_BROWSER_CHANNEL=''` after installing its browser runtime.
 - First-time package/image downloads require network access. Generated single
-  HTML files use system fonts and embedded media and work offline.
+  HTML files use system fonts and embedded media and work offline; dialogue
+  captions embed a subset of M PLUS Rounded 1c (OFL), fetched once per machine.
 
 ## Recommended places to share
 
@@ -137,6 +138,44 @@ Other voices are rejected by name and style ID. Both supported voices share the
 [SSS voice terms](https://zunko.jp/con_ongen_kiyaku.html); character and artwork
 rights remain separate. See [voice and artwork conditions](THIRD_PARTY_NOTICES.md).
 
+## Other speech sources
+
+The bundled Docker engine is the default. To synthesize elsewhere (a faster
+machine, a hosted engine, an agent's speech tool), set:
+
+| Variable | Meaning |
+| --- | --- |
+| `YES_TTS_CMD` | A command with the `yes-speak` flags and WAV contract (`EV_TTS_CMD` is an alias). |
+| `YES_TTS_FILES=1` | No command. `build.py tts-plan <project>` lists each sentence and the WAV to write; `build` reads them. |
+| `YES_TTS_ENGINE` | `voicevox` or `other`: what the command or files produce. A command defaults to `other`. |
+| `YES_TTS_SPEAKERS` | The engine's speaker list as JSON, for a dialogue cast with `YES_TTS_FILES`. |
+
+With `YES_TTS_ENGINE=voicevox`, YES enforces the same rules as with the bundled
+engine: only ずんだもん and 四国めたん, the narrator selected by style ID, and
+the voice credits and terms in the page. Use `other` only for engines that are
+not VOICEVOX; their credit and terms come from your script. Details:
+`skills/video/references/authoring.md`.
+
+## Embedding in a host page
+
+A page that hosts YES output can extend it through an optional global,
+`window.YESHost`, defined before the runtimes run:
+
+- `storage` — `list()`, `get(key)`, `set(key, value)` returning promises. A
+  course keeps progress there as well as in `localStorage`. Build with
+  `course/build.py build <course> --host-script host.js`.
+- `resolveLink(ref, hash, {framed})` — resolves a slide's `data-page` link;
+  return `{href, target}` or `null` for the default rules. Add the defining
+  `<script>` before the deck's runtime block.
+
+YES never requires a host; without `YESHost` the files behave as above.
+
+## Checks for any page
+
+`uv run plugins/yes/scripts/check_mobile.py page.html` opens a page at phone
+width (light and dark) and lists every element that makes it scroll sideways.
+Japanese pages give each term of art one form; see `references/terms-ja.md`.
+
 ## Examples
 
 ```sh
@@ -153,7 +192,7 @@ Build intermediates, transcript, and captions remain beside the delivered file.
 `--max-bytes 16777216` enforces a 16 MiB HTML limit when a destination needs it.
 
 The video format is an HTML player, not an MP4. Progress storage is best-effort
-localStorage with in-memory fallback. No Stash connection, API key, or cloud
+localStorage with in-memory fallback. No hosting service, API key, or cloud
 speech account is required. `zundamon-video` uses both standing characters,
 expressions, and lip sync by default; voice-only dialogue is an explicit option.
 The first dialogue build downloads the character sources into a local cache.

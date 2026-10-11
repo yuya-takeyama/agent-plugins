@@ -31,6 +31,8 @@ use `video`; for two-character narration use `zundamon-video`; for assessment
 use `quiz`; for multiple lessons use `course`. These are choices of output
 format, not mandatory steps for an ordinary explanation.
 
+Give each Japanese term of art one form ([terms](../../references/terms-ja.md)).
 Check the explanation against the sources, then render it at desktop and phone
-widths. Test the controls, keyboard focus, and absence of external resource
+widths (`uv run <plugin>/scripts/check_mobile.py explanation.html` lists anything
+that makes a phone scroll sideways). Test the controls, keyboard focus, and absence of external resource
 requests. Return the file and say which checks you completed.
