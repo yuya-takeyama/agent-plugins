@@ -7,6 +7,7 @@
     uv run build.py lint  <project>   # script checks only, no synthesis
     uv run build.py build <project>   # synth (cached) -> timeline -> captions -> out/video.html
     uv run build.py shoot <project> [--at end|start|mid] [--only s3,s4]
+    uv run build.py check <project>   # e2e in headless Chrome on out/video.html: maximize (F / button / Esc, fallback)
     uv run build.py unit  <project> --id ID --out DIR [--bitrate 32k]   # unit bundle for course
 
 <project>/script.json   narration, chapters, scenes, quizzes (see SKILL.md)
@@ -697,9 +698,31 @@ def cmd_shoot(root: Path, at: str, only: set[str] | None) -> None:
         browser.close()
 
 
+def cmd_check(root: Path) -> None:
+    """Drive the built page: maximize and restore, with and without the Fullscreen API; frames in out/frames/_full-*.png."""
+    from playwright.sync_api import sync_playwright
+    from maximize_check import check_maximize
+
+    tl = json.loads((root / "out" / "unit.json").read_text())["data"]["timeline"]
+    url = (root / "out" / "video.html").resolve().as_uri() + f"#t={tl['duration'] / 2:.1f}"
+    fails: list[str] = []
+
+    def expect(ok: bool, what: str) -> None:
+        print(("ok   " if ok else "FAIL ") + what)
+        if not ok:
+            fails.append(what)
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(channel=os.environ.get("YES_BROWSER_CHANNEL", "chrome") or None, args=["--autoplay-policy=no-user-gesture-required"])
+        check_maximize(browser, url, ".su-unit.ev-video", expect, root / "out" / "frames")
+        browser.close()
+    if fails:
+        die(f"{len(fails)} check(s) failed")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["lint", "build", "shoot", "unit"])
+    ap.add_argument("cmd", choices=["lint", "build", "shoot", "unit", "check"])
     ap.add_argument("project", type=Path)
     ap.add_argument("--at", default="end", choices=["start", "mid", "end"])
     ap.add_argument("--only")
@@ -715,6 +738,8 @@ def main() -> None:
     elif a.cmd == "build":
         cmd_build(root)
         export(root / "out" / "video.html", a.format, a.max_bytes)
+    elif a.cmd == "check":
+        cmd_check(root)
     elif a.cmd == "unit":
         if not (a.id and a.out):
             die("unit needs --id and --out")

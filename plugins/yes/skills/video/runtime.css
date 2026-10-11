@@ -125,6 +125,24 @@
 .ev-seek-tick { position: absolute; top: 7px; width: 2px; height: 14px; background: var(--muted); opacity: .6; }
 .ev-seek-knob { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
 
+.ev-fs { display: inline-flex; align-items: center; justify-content: center; }
+.ev-fs-out, .ev-full .ev-fs-in { display: none; }
+.ev-full .ev-fs-out { display: inline; }
+
+/* maximized: the player itself in fullscreen (Fullscreen API), or without it the page's viewport. Stage, captions and
+   controls only; the stage keeps 16:9 on the page background */
+.ev-video.ev-full { background: var(--bg); }
+.ev-video.ev-pseudo { position: fixed; inset: 0; z-index: 1000; }
+.ev-video.ev-full .ev-desc { display: none; }
+.ev-video.ev-full .ev-stage { border-radius: 0; box-shadow: none; }
+.ev-video.ev-full .ev-controls { transition: opacity .3s ease; }
+.ev-video.ev-full.ev-idle .ev-controls { opacity: 0; }
+.ev-video.ev-full.ev-idle { cursor: none; }
+/* a portrait phone keeps captions under the stage at readable size; the block sits mid-screen */
+.ev-video.ev-full.portrait > .ev-viewport { margin-top: auto; }
+.ev-video.ev-full.portrait .ev-cap-out { flex: none; min-height: 96px; }
+.ev-video.ev-full.portrait .ev-controls { margin-top: auto; }
+
 /* transcript drawer */
 .ev-tr { position: absolute; top: 0; right: 0; bottom: 56px; width: min(400px, 100%); background: var(--card); border-left: 1px solid var(--line);
   overflow-y: auto; z-index: 10; padding: 18px 18px 40px; transform: translateX(100%); transition: transform .25s ease; visibility: hidden; }

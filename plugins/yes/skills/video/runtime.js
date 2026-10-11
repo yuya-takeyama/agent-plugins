@@ -2,11 +2,15 @@
 // video unit runtime. Registers YESUnits.kinds.video.
 //
 // Unit contract (shared by every YESUnits kind):
-//   factory(root, data, host) -> { show(rest), hide() }
+//   factory(root, data, host) -> { show(rest), hide(), locate?(), play?() }
 //   root  — the unit's <div class="su-unit" data-unit=ID> (its fragment is already inside)
 //   data  — unit.json "data"
 //   host  — { saved: {frac, done, ...} | null, setRest(rest), progress(frac), position(rest), complete(),
 //             result(r), endActions() -> [{label, primary, run, title?, note?, auto?}], prefs: {get(k), set(k, v)} }
+//   `saved` may change while the unit lives (a sibling version of the same unit adds progress); a kind
+//   re-reads it on show. Optional, for versions of one unit (course `variants`): locate() returns
+//   {at, t, started, playing}, where `at` is a rest that another version with the same shape accepts in
+//   show(); play() starts playback (the host calls it from the learner's click).
 //   A primary action may carry the next step's headline (title), a line under it (note) and auto (seconds
 //   until it runs by itself; any other input cancels). The video's end screen features it over the rest.
 // A kind renders only from its own state and reports upward; the host owns hash, storage and navigation.
@@ -158,7 +162,11 @@ function mountCast(stage, cast) {
   seekBar.append(el('div', 'ev-seek-track'), fill, knob);
   chapters.forEach((c, i) => { if (!i) return; const t = el('div', 'ev-seek-tick'); t.style.left = `${(c.start / TL.duration) * 100}%`; seekBar.append(t); });
   const ccBtn = btn('字幕', '字幕 (C)'), speedBtn = btn('1×', '再生速度'), trBtn = btn('文字', '文字起こし (T)');
-  controls.append(playBtn, time, seekBar, ccBtn, speedBtn, trBtn);
+  // maximize: the expand corners while normal, the collapse corners while maximized (runtime.css swaps them)
+  const fsBtn = btn('', '全画面'); fsBtn.classList.add('ev-fs'); fsBtn.title = '全画面 (F)';
+  fsBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path class="ev-fs-in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="ev-fs-out" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>';
+  controls.append(playBtn, time, seekBar, ccBtn, speedBtn, trBtn, fsBtn);
   const tr = el('aside', 'ev-tr'), trButtons = [];
   chapters.forEach((c, i) => {
     tr.append(el('h2', null, `${i + 1}. ${c.title}`));
@@ -305,14 +313,16 @@ function mountCast(stage, cast) {
   function seek(x) { x = Math.max(0, Math.min(TL.duration, x)); try { audio.currentTime = x; } catch {} lastCT = null; render(x); }
   audio.addEventListener('play', () => { playBtn.textContent = '❚❚'; });
   audio.addEventListener('pause', () => {
-    playBtn.textContent = '▶';
+    playBtn.textContent = '▶'; wake();
     if (started) { const r = `t=${t.toFixed(1)}`; if (active) host.setRest(r); host.position(r); }
   });
   audio.addEventListener('ended', () => {
     render(TL.duration);
     if (!done) { done = true; host.complete(); }
     cancelAuto(); endMain.textContent = ''; endActs.textContent = '';
-    const actions = [...host.endActions(), { label: 'もう一度見る', run: () => { seek(0); play(); } }];
+    // a host action leaves this unit (next video, quiz, home): drop out of the maximized player first
+    const actions = [...host.endActions().map((a) => ({ ...a, run: () => { exitFull(); a.run(); } })),
+      { label: 'もう一度見る', run: () => { seek(0); play(); } }];
     const main = actions.find((a) => a.primary) || actions.at(-1);   // nothing next: replay is the main action
     for (const a of actions) {
       const b = el('button', a === main ? 'ev-end-go' : '', a.label);
@@ -334,7 +344,7 @@ function mountCast(stage, cast) {
   const playOrToggle = () => { if (started) toggle(); else play(); };
   playBtn.addEventListener('click', playOrToggle);
   playBig.addEventListener('click', play);
-  stage.addEventListener('click', (e) => { if (!e.target.closest('button')) playOrToggle(); });
+  stage.addEventListener('click', (e) => { if (swallowTap) { swallowTap = false; return; } if (!e.target.closest('button')) playOrToggle(); });
 
   const lineStep = (d) => { const i = lastStartAtOrBefore(lines, t + 0.05);
     const j = Math.max(0, Math.min(lines.length - 1, (d < 0 && t - lines[Math.max(i, 0)].start > 1.2) ? i : i + d)); seek(lines[j].start + 0.01); };
@@ -352,14 +362,57 @@ function mountCast(stage, cast) {
   const setSpeed = (i) => { speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, i)); audio.playbackRate = SPEEDS[speedIdx]; speedBtn.textContent = `${SPEEDS[speedIdx]}×`; host.prefs.set('speed', SPEEDS[speedIdx]); };
   setSpeed(speedIdx);
   speedBtn.addEventListener('click', () => setSpeed((speedIdx + 1) % SPEEDS.length));
+  // ---------- maximize: the Fullscreen API on the player, else the page's viewport (position: fixed) ----------
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+  const isFull = () => root.classList.contains('ev-full');
+  let idleTimer = null, swallowTap = false;
+  // maximized and playing, the controls fade after a still moment; a move, tap or key brings them back
+  function wake() {
+    root.classList.remove('ev-idle'); clearTimeout(idleTimer);
+    if (isFull()) idleTimer = setTimeout(() => { if (isFull() && !audio.paused) root.classList.add('ev-idle'); }, 2500);
+  }
+  function setFull(on, pseudo) {
+    root.classList.toggle('ev-full', on); root.classList.toggle('ev-pseudo', on && pseudo);
+    fsBtn.setAttribute('aria-label', on ? '全画面を終了' : '全画面'); fsBtn.title = on ? '全画面を終了 (F)' : '全画面 (F)';
+    wake(); fit();
+  }
+  function enterFull() {
+    if (isFull() || document.documentElement.classList.contains('ev-shot')) return;
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    const enabled = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
+    if (!req || enabled === false) { setFull(true, true); return; }
+    // fullscreenchange marks the real one; a refusal falls back to filling the page
+    try { Promise.resolve(req.call(root)).catch(() => { if (!isFull()) setFull(true, true); }); } catch { setFull(true, true); }
+  }
+  function exitFull() {
+    if (!isFull()) return;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (fsEl() === root && exit) Promise.resolve(exit.call(document)).catch(() => {});
+    setFull(false, false);
+  }
+  const toggleFull = () => { if (isFull()) exitFull(); else enterFull(); };
+  const onFsChange = () => {
+    if (fsEl() === root) setFull(true, false);
+    else if (isFull() && !root.classList.contains('ev-pseudo')) setFull(false, false);
+  };
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+  fsBtn.addEventListener('click', toggleFull);
+  root.addEventListener('pointermove', () => { if (isFull()) wake(); });
+  // a tap that only reveals the faded controls does not also pause
+  root.addEventListener('pointerdown', (e) => { swallowTap = root.classList.contains('ev-idle') && e.pointerType !== 'mouse'; if (isFull()) wake(); });
+
   const toggleTr = () => { tr.classList.toggle('open'); if (tr.classList.contains('open')) trButtons[curLine]?.scrollIntoView({ block: 'center' }); };
   trBtn.addEventListener('click', toggleTr);
 
   document.addEventListener('keydown', (e) => {
     if (active && autoTimer) cancelAuto();
     if (!active || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (isFull()) wake();
     const k = e.key;
-    if (k === ' ' || k === 'k') { e.preventDefault(); playOrToggle(); }
+    if (k === 'Escape') { if (isFull()) { e.preventDefault(); exitFull(); } }
+    else if (k === 'f' || k === 'F') { e.preventDefault(); toggleFull(); }
+    else if (k === ' ' || k === 'k') { e.preventDefault(); playOrToggle(); }
     else if (k === 'ArrowRight') { e.preventDefault(); if (e.shiftKey) chapterStep(1); else lineStep(1); }
     else if (k === 'ArrowLeft') { e.preventDefault(); if (e.shiftKey) chapterStep(-1); else lineStep(-1); }
     else if (k === 'l') seek(t + 5);
@@ -385,7 +438,7 @@ function mountCast(stage, cast) {
     if (portrait && end.parentElement !== root) viewport.after(end);
     if (!portrait && end.parentElement !== stage) stage.append(end);
     const shot = document.documentElement.classList.contains('ev-shot');
-    const pad = shot ? 0 : box.width < 860 ? 8 : 20;
+    const pad = shot || isFull() ? 0 : box.width < 860 ? 8 : 20;
     viewport.style.flex = portrait ? 'none' : '';
     viewport.style.height = portrait ? `${(720 * (box.width - pad * 2)) / 1280 + pad * 2}px` : '';
     const vp = viewport.getBoundingClientRect();
@@ -395,10 +448,37 @@ function mountCast(stage, cast) {
   new ResizeObserver(fit).observe(root);
   desc.addEventListener('toggle', fit);
 
-  // rest: "" | "t=12.3" | "t=12.3&shot" | "<chapter id>"
+  // a position as (chapter, scene in chapter, line in scene) indices: versions of one video share the shape, not the times
+  const chapterScenes = (c) => scenes.filter((s) => s.chapter === chapters[c]?.id);
+  function locate() {
+    const li = Math.max(0, lastStartAtOrBefore(lines, t)), line = lines[li];
+    const c = chapters.findIndex((x) => x.id === line.chapter), s = chapterScenes(c).findIndex((x) => x.id === line.scene);
+    // a deep link past the start screen is a position too, though nothing has played yet
+    return { at: `at=${c}.${s}.${line.idx}`, t, started: started || start.hidden, playing: !audio.paused };
+  }
+  // the line's head, or the chapter's head when this version has no such line
+  function timeOfAt(c, s, l) {
+    const sc = chapterScenes(c)[s], line = sc && lines.find((x) => x.scene === sc.id && x.idx === l);
+    return line ? line.start : chapters[c] ? chapters[c].start : 0;
+  }
+
+  // rest: "" | "t=12.3" | "t=12.3&shot" | "<chapter id>" | "at=<chapter>.<scene>.<line>"
   return {
+    locate,
+    play,
     show(rest) {
       active = true; root.hidden = false; fit();
+      if (host.saved) { watched = Math.max(watched, (host.saved.frac || 0) * TL.duration); done ||= !!host.saved.done; }
+      // another version of this unit may have changed speed or captions since; only a stored value overrides
+      const sp = SPEEDS.indexOf(+host.prefs.get('speed'));
+      if (sp >= 0 && sp !== speedIdx) setSpeed(sp);
+      const cc = host.prefs.get('cc');
+      if (typeof cc === 'boolean' && cc === root.classList.contains('nocap')) setCC(cc);
+      const a = /^at=(\d+)\.(\d+)\.(\d+)$/.exec(rest || '');
+      if (a) {
+        started = true; start.hidden = true; end.hidden = true;
+        seek(timeOfAt(+a[1], +a[2], +a[3]) + 0.01); return;
+      }
       const m = /^t=(\d+(?:\.\d+)?)(&shot)?$/.exec(rest || '');
       if (m) {
         if (m[2]) { document.documentElement.classList.add('ev-shot'); fit(); }
@@ -409,7 +489,7 @@ function mountCast(stage, cast) {
       start.hidden = !!ch || started; end.hidden = true;
       seek(ch ? ch.start + 0.01 : started ? t : 0);
     },
-    hide() { active = false; cancelAuto(); audio.pause(); tr.classList.remove('open'); root.hidden = true; },
+    hide() { exitFull(); active = false; cancelAuto(); audio.pause(); tr.classList.remove('open'); root.hidden = true; },
   };
 };
 }
