@@ -139,7 +139,7 @@ def build_unit(root: Path, u: dict, bitrate: str) -> dict:
     return json.loads((out / "unit.json").read_text())
 
 
-def cmd_build(root: Path) -> None:
+def cmd_build(root: Path, host_scripts: list[Path] = ()) -> None:
     course = load(root)
     bitrate = course.get("bitrate", "32k")
     lessons, unit_data, fragments, css, js = [], {}, [], {}, {}
@@ -209,6 +209,14 @@ def cmd_build(root: Path) -> None:
         if key not in page:
             die(f"page.html lost placeholder {key}")
         page = page.replace(key, val)
+    if host_scripts:
+        # a host's window.YESHost goes right after the charset, before any runtime reads it
+        bodies = [Path(f).read_text().replace("</script", "<\\/script") for f in host_scripts]
+        inline = "".join(f"<script>\n{body}\n</script>\n" for body in bodies)
+        anchor = '<meta charset="utf-8">\n'
+        if anchor not in page:
+            die("page.html lost its charset meta")
+        page = page.replace(anchor, anchor + inline, 1)
     out = root / "out" / "course.html"
     out.write_text(page)
     (root / "out" / "course.json").write_text(json.dumps({"lessons": lessons}, ensure_ascii=False, indent=1))
@@ -559,9 +567,14 @@ def main() -> None:
     ap.add_argument("course", type=Path)
     ap.add_argument("--format", choices=["single", "bundle"], default="single")
     ap.add_argument("--max-bytes", type=int, help="Optional publishing-host HTML size limit")
+    ap.add_argument("--host-script", type=Path, action="append", default=[],
+                    help="JavaScript that defines window.YESHost (storage, link resolution); inlined first in <head>")
     a = ap.parse_args()
     root = a.course.resolve()
-    {"build": cmd_build, "shoot": cmd_shoot, "check": cmd_check}[a.cmd](root)
+    if a.cmd == "build":
+        cmd_build(root, [f.resolve() for f in a.host_script])
+    else:
+        {"shoot": cmd_shoot, "check": cmd_check}[a.cmd](root)
     if a.cmd == "build":
         export(root / "out" / "course.html", a.format, a.max_bytes)
 

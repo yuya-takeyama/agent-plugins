@@ -352,10 +352,21 @@ a { color: var(--accent); }
   }
   /* ---------- links to other documents ---------- */
   function isFramed() { try { return window.self !== window.top; } catch { return true; } }
+  // A host page may resolve data-page links itself (window.YESHost.resolveLink); otherwise the plain rules apply.
+  function resolveLink(id, hash) {
+    const host = window.YESHost;
+    if (host && typeof host.resolveLink === 'function') {
+      try {
+        const r = host.resolveLink(id, hash, { framed: isFramed() });
+        if (r && typeof r.href === 'string') return { href: r.href, target: typeof r.target === 'string' ? r.target : '' };
+      } catch { /* fall back to the plain rules */ }
+    }
+    return pageHref(location, id, hash, isFramed());
+  }
   function wireLinks(root) {
     root.querySelectorAll('a[data-page]').forEach(a => {
       const v = a.getAttribute('data-page') || '', i = v.indexOf('#');
-      const r = pageHref(location, i < 0 ? v : v.slice(0, i), i < 0 ? '' : v.slice(i), isFramed());
+      const r = resolveLink(i < 0 ? v : v.slice(0, i), i < 0 ? '' : v.slice(i));
       if (!r) return;
       a.setAttribute('href', r.href);
       if (r.target) { a.setAttribute('target', r.target); a.setAttribute('rel', 'noopener'); } else { a.removeAttribute('target'); }
@@ -769,7 +780,7 @@ a { color: var(--accent); }
     // play a built-in sound; does nothing (returns false) unless the deck has data-sound and the viewer turned it on
     sfx,
     get sound() { return snd.on; },
-    pageUrl(id, hash) { const r = pageHref(location, id, hash || '', isFramed()); return r && r.href; },
+    pageUrl(id, hash) { const r = resolveLink(id, hash || ''); return r && r.href; },
     get state() { return current ? current.state : NONE; },
   };
   window.YESSlides = api;

@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["budoux>=0.6", "imageio-ffmpeg>=0.5", "playwright>=1.50"]
+# dependencies = ["budoux>=0.6", "imageio-ffmpeg>=0.5", "playwright>=1.50", "fonttools>=4.50", "brotli>=1.1"]
 # ///
 """uv run test_build.py"""
 

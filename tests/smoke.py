@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["playwright>=1.50", "budoux>=0.6", "imageio-ffmpeg>=0.5"]
+# dependencies = ["playwright>=1.50", "budoux>=0.6", "imageio-ffmpeg>=0.5", "fonttools>=4.50", "brotli>=1.1"]
 # ///
 """Build all formats with deterministic test audio and exercise them in a real browser."""
 from pathlib import Path
@@ -59,6 +59,39 @@ course=work/'course'; course.mkdir()
 run('course','build',course,'--format','bundle')
 run('course','check',course)
 
+# Two versions of one video unit, and a host that keeps progress in its own store (window.YESHost).
+# Long enough (about 40 s of fake audio) that the version checks can play most of one version.
+def long_version(dest,prefix,pause):
+    # Same shape in both versions (scenes of 2, 3 and 120 lines), different timing: switching must map by position.
+    dest.mkdir()
+    sizes=[2,3,120]
+    scenes=[{'id':f'{prefix}-{n}','lines':[{'text':f'{n}の{i + 1}番目の説明です。','pause':pause} for i in range(k)]}
+            for n,k in enumerate(sizes)]
+    (dest/'script.json').write_text(json.dumps({'title':'版のテスト','credit':'Fixture TTS','goals':['版を切り替えられる'],
+        'chapters':[{'id':prefix,'title':'版','scenes':scenes}]},ensure_ascii=False))
+    (dest/'scenes.html').write_text(''.join(f'<section class="scene" data-scene="{sc["id"]}"><h2 class="ev-h">{sc["id"]}</h2></section>' for sc in scenes))
+version_a=work/'video-a'; long_version(version_a,'cachea',0.35)
+version_b=work/'video-b'; long_version(version_b,'cacheb',0.6)
+versions=work/'versions'; versions.mkdir()
+(versions/'course.json').write_text(json.dumps({'id':'versions','title':'Versions course','lessons':[
+    {'id':'v1','title':'Pick a version','summary':'Two versions','units':[
+        {'kind':'video','variants':[{'key':'a','label':'A','src':str(version_a)},{'key':'b','label':'B','src':str(version_b)}]}]},
+    {'id':'v2','title':'Next','summary':'Second lesson','units':[{'kind':'quiz','src':str(quiz)}]},
+]}))
+host=work/'host.js'
+host.write_text('''window.__hostWrites = [];
+window.YESHost = { storage: {
+  store: new Map([['variant', { key: 'b' }]]),
+  async list() { return [...this.store].map(([key, value]) => ({ key, value })); },
+  async get(key) { return this.store.get(key); },
+  async set(key, value) { this.store.set(key, value); window.__hostWrites.push(key); },
+} };''')
+run('course','build',versions)
+run('course','check',versions)
+hosted=work/'hosted'; hosted.mkdir(); shutil.copy(versions/'course.json',hosted/'course.json')
+run('course','build',hosted,'--host-script',host)
+assert '@font-face' in (dialogue/'out/video.html').read_text(),'dialogue captions embed their font'
+
 class QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, *args): pass
 
@@ -87,6 +120,17 @@ html,body { margin:0; background:#faf9f6; }
     caption_page.locator('.ev-cap span').evaluate_all('spans=>spans.forEach(s=>s.textContent="")')
     assert caption_page.screenshot()==empty_caption,'Clearing captions left stale stroke pixels'
     caption_page.close()
+    host_page=browser.new_page(viewport={'width':1280,'height':800})
+    host_page.goto(base+'/hosted/out/course.html#v1-video')
+    host_page.wait_for_selector('.su-unit[data-unit="v1-video~b"]:not([hidden])')
+    host_page.evaluate('location.hash = "#v2-quiz"')
+    box=host_page.locator('[data-unit="v2-quiz"]'); box.wait_for(state='visible')
+    for i,q in enumerate(json.loads(quiz.read_text())['questions']):
+        box.locator('.qz-q').nth(i).locator('.qz-ch').nth(q['answer']).click()
+    host_page.wait_for_function('window.__hostWrites.includes("u:v2-quiz")')
+    stored=host_page.evaluate('window.YESHost.storage.store.get("u:v2-quiz")')
+    assert stored['done'] and stored['score']==len(json.loads(quiz.read_text())['questions']),('host storage keeps the result',stored)
+    host_page.close()
     for name,path in [('slides',slides),('quiz',work/'out/quiz.html'),
                       ('video',video/'out/video.html'),('video-bundle',video/'out/video-bundle/index.html'),
                       ('dialogue',dialogue/'out/video.html'),('course-bundle',course/'out/course-bundle/index.html')]:
