@@ -148,8 +148,8 @@ A script with `"cast"` becomes a dialogue video (authoring guide:
 | Source | Set | VOICEVOX rules |
 |---|---|---|
 | bundled Docker engine | nothing | always |
-| a command | `YES_TTS_CMD` (alias `EV_TTS_CMD`), optional `YES_TTS_ENGINE` | when `YES_TTS_ENGINE=voicevox` |
-| files written by the agent | `YES_TTS_FILES=1`, `YES_TTS_ENGINE`, `YES_TTS_SPEAKERS` for a cast | when `YES_TTS_ENGINE=voicevox` |
+| a command | `YES_TTS_CMD` (alias `EV_TTS_CMD`), optional `YES_TTS_ENGINE` | unless `YES_TTS_ENGINE=other` |
+| files written by the agent | `YES_TTS_FILES=1`, `YES_TTS_ENGINE`, `YES_TTS_SPEAKERS` | when `YES_TTS_ENGINE=voicevox` |
 
 - A command takes `--text T -o FILE --force --speed S [--speaker STYLE_ID]`
   and writes a 24000 Hz mono 16-bit WAV; `--list-speakers --json` prints
@@ -162,8 +162,9 @@ A script with `"cast"` becomes a dialogue video (authoring guide:
   `{engine, format, items: [{file, text, speaker, style, style_id, speed}]}`
   for every sentence without audio. Synthesize each `text` with that voice
   and speed and write the WAV to `file`, then `build`. `build` never
-  synthesizes in this mode and stops while any file is missing. For a cast,
-  `YES_TTS_SPEAKERS` is the engine's speaker list in the format above.
+  synthesizes in this mode and stops while any file is missing.
+  `YES_TTS_SPEAKERS` is the engine's speaker list in the format above (for
+  VOICEVOX or a cast), so every line carries a style id.
 - The cache key includes the source, so audio from one source never stands
   in for another.
 

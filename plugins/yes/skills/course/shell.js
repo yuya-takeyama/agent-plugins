@@ -49,9 +49,15 @@ const clean = (v) => ({ frac: +v.frac || 0, done: !!v.done, score: v.score == nu
     pending.clear();
   });
   const cleanResume = (v) => (v && byUnit.has(v.unit) ? { unit: v.unit, rest: String(v.rest || ''), ...(typeof v.variant === 'string' ? { variant: v.variant } : {}) } : null);
+  // a second source (the host's store) never takes progress back: the furthest watch and any finish win
+  const merge = (a, b) => {
+    if (!a) return b;
+    const taken = b.score != null ? b : a;
+    return { frac: Math.max(a.frac, b.frac), done: a.done || b.done, score: taken.score, total: taken.total, wrong: taken.wrong };
+  };
   function load(key, v) {
     if (!v || typeof v !== 'object') return;
-    if (key.startsWith('u:') && byUnit.has(key.slice(2))) state.units[key.slice(2)] = clean(v);
+    if (key.startsWith('u:') && byUnit.has(key.slice(2))) state.units[key.slice(2)] = merge(state.units[key.slice(2)], clean(v));
     else if (key === 'resume') state.resume = cleanResume(v) || state.resume;
     else if (key === 'variant' && typeof v.key === 'string') state.variant = v.key;
   }

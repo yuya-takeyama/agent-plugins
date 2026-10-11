@@ -27,7 +27,8 @@ with wave.open(sys.argv[sys.argv.index('-o')+1], 'wb') as w:
     w.writeframes(b''.join(struct.pack('<h',int(1000*math.sin(2*math.pi*220*i/24000))) for i in range(12000)))
 ''')
 import shlex
-env=dict(os.environ,EV_TTS_CMD=shlex.join([sys.executable,str(fake)]),EV_TTS_CACHE=str(work/'cache'))
+# The fake engine is not VOICEVOX: its credit and terms come from the scripts.
+env=dict(os.environ,EV_TTS_CMD=shlex.join([sys.executable,str(fake)]),YES_TTS_ENGINE='other',EV_TTS_CACHE=str(work/'cache'))
 def run(kind,*args):
     subprocess.run([sys.executable,str(SKILLS/kind/'build.py'),*map(str,args)],env=env,check=True)
 

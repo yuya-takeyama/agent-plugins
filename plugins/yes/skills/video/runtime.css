@@ -188,6 +188,8 @@
 .ev-stage:has(> .ev-over:not([hidden])) .ev-char { visibility: hidden; }
 .ev-cast .ev-cap { left: 270px; right: 270px; bottom: 16px; }
 /* Isolate thick text strokes so Chromium clears their full ink bounds on cue changes. */
+/* faded controls take no taps: the first tap only brings them back */
+.ev-full.ev-idle .ev-controls { pointer-events: none; }
 .ev-cap-in { display: grid; max-width: 740px; will-change: transform; }
 .ev-cap-in > span { grid-area: 1 / 1; }
 .ev-cast .ev-cap span { background: none; padding: 0; border-radius: 0; max-width: none; color: var(--who, #fff); font-family: var(--ev-cap-font, "M PLUS Rounded 1c"), var(--font); font-weight: 800; font-size: 34px; line-height: 1.38;

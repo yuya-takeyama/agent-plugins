@@ -93,7 +93,7 @@ class UsageTermsTest(unittest.TestCase):
 
     def test_custom_adapter_is_not_assumed_to_be_voicevox(self):
         custom = {'text': 'Custom audio terms', 'links': [{'title': 'License', 'url': 'https://example.com/license'}]}
-        with patch.dict(os.environ, {'EV_TTS_CMD': 'custom'}):
+        with patch.dict(os.environ, {'EV_TTS_CMD': 'custom', 'YES_TTS_ENGINE': 'other'}):
             self.assertEqual(build.terms_for({'usageTerms': custom}, [], [], []), custom)
             self.assertEqual(build.terms_for({}, [], [], []), {})
             for bad in (None, {'links': []}, {'text': 'Bad', 'links': [{'title': 'Bad', 'url': 'javascript:alert(1)'}]}):
@@ -226,7 +226,7 @@ class VoiceTest(unittest.TestCase):
         with patch.dict(os.environ, {"EV_TTS_CMD": ""}):
             self.assertEqual(build.narration_credit({}), "VOICEVOX:ずんだもん")
         self.assertEqual(build.narration_credit({"credit": " Other TTS:Alice "}), "Other TTS:Alice")
-        with self.assertRaises(SystemExit):
+        with patch.dict(os.environ, {"YES_TTS_ENGINE": "other"}), self.assertRaises(SystemExit):
             build.narration_credit({})
 
     def test_list_speakers_and_styles(self):
@@ -280,11 +280,13 @@ class BackendTest(unittest.TestCase):
             b = build.backend()
         self.assertEqual((b["kind"], b["engine"]), ("bundled", "voicevox"))
 
-    def test_a_command_is_other_unless_declared_voicevox(self):
+    def test_a_command_is_voicevox_unless_declared_other(self):
         with self.env(EV_TTS_CMD="tts"):
-            self.assertEqual(build.backend()["engine"], "other")
-        with self.env(YES_TTS_CMD="zundaspeak", YES_TTS_ENGINE="voicevox"):
+            self.assertEqual(build.backend()["engine"], "voicevox")
+        with self.env(YES_TTS_CMD="zundaspeak"):
             self.assertEqual((build.backend()["kind"], build.backend()["engine"]), ("cmd", "voicevox"))
+        with self.env(YES_TTS_CMD="other-tts", YES_TTS_ENGINE="other"):
+            self.assertEqual(build.backend()["engine"], "other")
 
     def test_invalid_combinations_stop(self):
         for kw in ({"YES_TTS_ENGINE": "nope"}, {"YES_TTS_FILES": "1"}, {"YES_TTS_FILES": "1", "YES_TTS_CMD": "x", "YES_TTS_ENGINE": "other"},
@@ -352,7 +354,10 @@ class FilesBackendTest(unittest.TestCase):
         (self.project).mkdir()
         (self.project / "script.json").write_text(json.dumps({"title": "t", "chapters": [
             {"id": "c", "title": "c", "scenes": [{"id": "c-1", "lines": ["あいう。", "えお。"]}]}]}, ensure_ascii=False))
-        self.patch = patch.dict(os.environ, {"YES_TTS_FILES": "1", "YES_TTS_ENGINE": "voicevox", "YES_TTS_CMD": "", "EV_TTS_CMD": ""})
+        self.speakers = self.tmp / "speakers.json"
+        self.speakers.write_text(json.dumps(SPEAKERS, ensure_ascii=False))
+        self.patch = patch.dict(os.environ, {"YES_TTS_FILES": "1", "YES_TTS_ENGINE": "voicevox", "YES_TTS_CMD": "", "EV_TTS_CMD": "",
+                                             "YES_TTS_SPEAKERS": str(self.speakers)})
         self.patch.start()
         self.cache = patch.object(build, "TTS_CACHE", self.tmp / "cache")
         self.cache.start()
@@ -365,9 +370,10 @@ class FilesBackendTest(unittest.TestCase):
         build.cmd_tts_plan(self.project)
         plan = json.loads((self.project / "out" / "tts-plan.json").read_text())
         self.assertEqual(plan["engine"], "voicevox")
-        self.assertEqual([(i["text"], i["speaker"], i["style"]) for i in plan["items"]],
-                         [("あいう。", "ずんだもん", "ノーマル"), ("えお。", "ずんだもん", "ノーマル")])
+        self.assertEqual([(i["text"], i["speaker"], i["style"], i["style_id"]) for i in plan["items"]],
+                         [("あいう。", "ずんだもん", "ノーマル", 3), ("えお。", "ずんだもん", "ノーマル", 3)])
         _, readings, _, lines = build.load_project(self.project)
+        build.resolve_voices([], lines)
         with self.assertRaises(SystemExit):
             build.synth(lines, readings, build.TTS_CACHE, 1.0)
         for item in plan["items"]:
@@ -378,16 +384,33 @@ class FilesBackendTest(unittest.TestCase):
         build.cmd_tts_plan(self.project)
         self.assertEqual(json.loads((self.project / "out" / "tts-plan.json").read_text())["items"], [])
 
-    def test_a_cast_needs_the_speaker_list(self):
-        speakers = self.tmp / "speakers.json"
-        speakers.write_text(json.dumps(SPEAKERS, ensure_ascii=False))
+    def test_voices_need_the_speaker_list(self):
         cast = build.load_cast({"cast": [{"id": "m", "speaker": "四国めたん"}]})
         lines = [{"id": "a.0", "text": "あ", "who": "m", "style": "ツンツン", "face": "normal"}]
-        with self.assertRaises(SystemExit):
+        with patch.dict(os.environ, {"YES_TTS_SPEAKERS": ""}), self.assertRaises(SystemExit):
             build.resolve_voices(cast, lines)
-        with patch.dict(os.environ, {"YES_TTS_SPEAKERS": str(speakers)}):
-            build.resolve_voices(cast, lines)
+        with patch.dict(os.environ, {"YES_TTS_SPEAKERS": ""}), self.assertRaises(SystemExit):
+            build.resolve_voices([], [{"id": "a.0", "text": "あ"}])
+        build.resolve_voices(cast, lines)
         self.assertEqual(lines[0]["style_id"], 6)
+
+
+class CaptionFontTest(unittest.TestCase):
+    def test_subset_holds_the_caption_glyphs_and_a_bad_cache_is_refetched(self):
+        cache = Path(tempfile.mkdtemp())
+        with patch.object(build, "FONT_CACHE", cache):
+            css = build.caption_font_css(["字幕のテスト"], "yes-cap-x")
+            if not css:
+                self.skipTest("caption font download unavailable")
+            self.assertIn('font-family:"yes-cap-x"', css)
+            (cache / Path(build.CAPTION_FONT["url"]).name).write_bytes(b"broken")
+            self.assertTrue(build.caption_font_css(["字幕"], "yes-cap-y"))
+        import base64, io
+        from fontTools.ttLib import TTFont
+        data = base64.b64decode(css.split("base64,")[1].split(")")[0])
+        cmap = TTFont(io.BytesIO(data)).getBestCmap()
+        self.assertTrue(all(ord(ch) in cmap for ch in "字幕のテスト"))
+        self.assertLess(len(data), 60_000)
 
 
 if __name__ == "__main__":

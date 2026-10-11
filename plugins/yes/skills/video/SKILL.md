@@ -35,15 +35,15 @@ the first build downloads the engine image. See the plugin's
 Other speech sources replace it (details in the authoring guide):
 
 - `YES_TTS_CMD` — a command with the yes-speak flags and WAV contract
-  (`EV_TTS_CMD` is an alias). Add `YES_TTS_ENGINE=voicevox` when it is a
-  VOICEVOX engine elsewhere (a remote server, a cloud function): YES then
-  applies the same voice restriction, credits and terms as the bundled one.
+  (`EV_TTS_CMD` is an alias), e.g. a VOICEVOX engine elsewhere (a remote
+  server, a cloud function). YES applies the same voice restriction, credits
+  and terms as with the bundled engine.
 - `YES_TTS_FILES=1` with `YES_TTS_ENGINE` — no command: `build.py tts-plan`
   lists each sentence and the WAV path to write (from an MCP speech tool,
   another machine), and `build` reads those files.
 
-A command or file source without `YES_TTS_ENGINE=voicevox` is treated as a
-non-VOICEVOX engine: set `"credit"` (and `usageTerms`) in script.json. Never
+A command is treated as VOICEVOX unless `YES_TTS_ENGINE=other` declares a
+different engine; then set `"credit"` (and `usageTerms`) in script.json. Never
 declare VOICEVOX output as `other`.
 
 Run `lint`, then `build`, then `shoot`, and inspect every scene screenshot.
@@ -53,6 +53,6 @@ Playwright Chromium instead. Review pronunciation and the standalone transcript.
 Keep VOICEVOX credits in the generated page.
 Read [voice and artwork conditions](../../THIRD_PARTY_NOTICES.md) before
 selecting a voice or distributing its output. Preserve the generated usage
-terms in the description. With `EV_TTS_CMD`, supply the adapter's actual
+terms in the description. With `YES_TTS_ENGINE=other`, supply the engine's actual
 `usageTerms: {text, links: [{title, url, note}]}` in script.json along with its
 credit; these are displayed without assuming the custom engine is VOICEVOX.

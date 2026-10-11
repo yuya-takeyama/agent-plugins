@@ -18,7 +18,7 @@
 Speech comes from the bundled `yes-speak` (Docker VOICEVOX) unless:
   YES_TTS_CMD     a command with the yes-speak contract (EV_TTS_CMD is an alias)
   YES_TTS_FILES=1 the agent writes the WAVs listed by `tts-plan` (e.g. from an MCP tool)
-  YES_TTS_ENGINE  voicevox | other: what YES_TTS_CMD / YES_TTS_FILES produce (default other for a command)
+  YES_TTS_ENGINE  voicevox | other: what YES_TTS_CMD / YES_TTS_FILES produce (a command defaults to voicevox)
   YES_TTS_SPEAKERS  the engine's speaker list as JSON, for a cast with YES_TTS_FILES
 """
 
@@ -270,7 +270,8 @@ def backend() -> dict:
     if files and not engine:
         die("YES_TTS_FILES needs YES_TTS_ENGINE=voicevox or YES_TTS_ENGINE=other.")
     if cmd:
-        return {"kind": "cmd", "engine": engine or "other", "cmd": shlex.split(cmd), "id": cmd}
+        # VOICEVOX unless declared otherwise: dropping its rules takes an explicit YES_TTS_ENGINE=other
+        return {"kind": "cmd", "engine": engine or "voicevox", "cmd": shlex.split(cmd), "id": cmd}
     if files:
         return {"kind": "files", "engine": engine, "cmd": None, "id": "files:" + engine}
     if engine == "other":
@@ -296,7 +297,7 @@ def list_speakers() -> list[dict]:
     if backend()["kind"] == "files":
         path = os.environ.get("YES_TTS_SPEAKERS")
         if not path:
-            raise RuntimeError("a cast with YES_TTS_FILES needs YES_TTS_SPEAKERS, the engine's speaker list as JSON")
+            raise RuntimeError("YES_TTS_FILES needs YES_TTS_SPEAKERS, the engine's speaker list as JSON")
         result = json.loads(Path(path).read_text())
     else:
         r = subprocess.run([*tts_cmd(), "--list-speakers", "--json"], capture_output=True, text=True)
@@ -369,6 +370,8 @@ FONT_CACHE = Path(os.environ.get("YES_FONT_CACHE", Path.home() / ".cache" / "yes
 
 def caption_font_file() -> Path | None:
     path = FONT_CACHE / Path(CAPTION_FONT["url"]).name
+    if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != CAPTION_FONT["sha256"]:
+        path.unlink()
     if not path.exists():
         try:
             FONT_CACHE.mkdir(parents=True, exist_ok=True)
@@ -635,7 +638,7 @@ def resolve_voices(cast: list[dict], lines: list[dict]) -> list[dict]:
     """Give each line its style id and return the engine's speakers (none for the bundled single narrator)."""
     b = backend()
     # a VOICEVOX narrator from another command or from files is named, never left to that engine's default voice
-    need = bool(cast) or (licensed() and b["kind"] == "cmd")
+    need = bool(cast) or (licensed() and b["kind"] in ("cmd", "files"))
     if not need:
         return []
     try:
@@ -646,7 +649,7 @@ def resolve_voices(cast: list[dict], lines: list[dict]) -> list[dict]:
     if not cast:
         sid = styles.get(("ずんだもん", "ノーマル"))
         if sid is None:
-            die("the TTS command lists no ずんだもん ノーマル style")
+            die("the speaker list has no ずんだもん ノーマル style")
         for ln in lines:
             ln["style_id"] = sid
         return speakers

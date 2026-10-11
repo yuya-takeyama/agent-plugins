@@ -147,8 +147,8 @@ machine, a hosted engine, an agent's speech tool), set:
 | --- | --- |
 | `YES_TTS_CMD` | A command with the `yes-speak` flags and WAV contract (`EV_TTS_CMD` is an alias). |
 | `YES_TTS_FILES=1` | No command. `build.py tts-plan <project>` lists each sentence and the WAV to write; `build` reads them. |
-| `YES_TTS_ENGINE` | `voicevox` or `other`: what the command or files produce. A command defaults to `other`. |
-| `YES_TTS_SPEAKERS` | The engine's speaker list as JSON, for a dialogue cast with `YES_TTS_FILES`. |
+| `YES_TTS_ENGINE` | `voicevox` or `other`: what the command or files produce. A command defaults to `voicevox`; files must say. |
+| `YES_TTS_SPEAKERS` | The engine's speaker list as JSON; needed with `YES_TTS_FILES` for VOICEVOX or a dialogue cast. |
 
 With `YES_TTS_ENGINE=voicevox`, YES enforces the same rules as with the bundled
 engine: only ずんだもん and 四国めたん, the narrator selected by style ID, and
