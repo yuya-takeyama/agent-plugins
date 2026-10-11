@@ -190,7 +190,7 @@
 /* Isolate thick text strokes so Chromium clears their full ink bounds on cue changes. */
 .ev-cap-in { display: grid; max-width: 740px; will-change: transform; }
 .ev-cap-in > span { grid-area: 1 / 1; }
-.ev-cast .ev-cap span { background: none; padding: 0; border-radius: 0; max-width: none; color: var(--who, #fff); font-family: "M PLUS Rounded 1c", var(--font); font-weight: 800; font-size: 34px; line-height: 1.38;
+.ev-cast .ev-cap span { background: none; padding: 0; border-radius: 0; max-width: none; color: var(--who, #fff); font-family: var(--ev-cap-font, "M PLUS Rounded 1c"), var(--font); font-weight: 800; font-size: 34px; line-height: 1.38;
   -webkit-text-stroke: 6px #fff; paint-order: stroke fill; }
 .ev-cast .ev-cap span.ev-cap-edge { color: #1d1d22; -webkit-text-stroke: 16px #1d1d22; }
 .ev-video.portrait.ev-cast .ev-cap-out .ev-cap span { font-size: 17px; padding: 0; -webkit-text-stroke-width: 3px; }

@@ -4,6 +4,8 @@ from __future__ import annotations
 SUPPORTED_VOICES = frozenset({"ずんだもん", "四国めたん"})
 ENGINE_TERMS = "https://github.com/VOICEVOX/voicevox_resource/blob/0.25.2/engine/README.md"
 MODEL_TERMS = "https://github.com/VOICEVOX/voicevox_vvm/blob/0.16.4/README.md"
+CURRENT_ENGINE_TERMS = "https://github.com/VOICEVOX/voicevox_resource/blob/main/engine/README.md"
+CURRENT_MODEL_TERMS = "https://github.com/VOICEVOX/voicevox_vvm/blob/main/README.md"
 VOICE_TERMS = "https://zunko.jp/con_ongen_kiyaku.html"
 REUSE_NOTICE = (
     "YESのMITライセンスは音声・キャラクター・立ち絵には適用されません。"
@@ -28,11 +30,15 @@ def voice_policy(name: str) -> dict:
     }
 
 
-def usage_notice(voices: list[dict], art: list[dict] | None = None) -> dict:
+def usage_notice(voices: list[dict], art: list[dict] | None = None, pinned: bool = True) -> dict:
+    """`pinned` names the bundled engine's versions; another VOICEVOX engine links the current terms."""
     links = []
-    if voices:
+    if voices and pinned:
         links += [{"title": "VOICEVOX エンジン利用規約 (0.25.2)", "url": ENGINE_TERMS},
                   {"title": "VOICEVOX 音声モデル利用規約 (0.16.4)", "url": MODEL_TERMS}]
+    elif voices:
+        links += [{"title": "VOICEVOX エンジン利用規約", "url": CURRENT_ENGINE_TERMS},
+                  {"title": "VOICEVOX 音声モデル利用規約", "url": CURRENT_MODEL_TERMS}]
     for voice in voices:
         links.append({"title": f"{voice['name']} 音源利用規約", "url": voice["terms_url"],
                       "note": " ".join(voice.get("license_notes", []))})
