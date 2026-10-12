@@ -828,7 +828,8 @@ a { color: var(--accent); }
 })();
 </script>
 <script>
-/* Optional scripted scenes: <section class="slide" data-scene="name" data-fixed>
+/* Optional scripted scenes: give the slide a data-scene attribute naming the scene
+   (prefix it with the deck's topic so it stays unique in a course) plus data-fixed, then:
 YESSlides.scene('name', {
   steps: 2,
   enter(ctx) {},          // slide became current; ctx.every/later timers stop when it leaves

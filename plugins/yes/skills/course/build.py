@@ -31,6 +31,7 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SKILL_DIR.parents[1] / "scripts"))
+from markup import attr_values
 from output import export
 SKILLS = SKILL_DIR.parent
 # kind -> skill that knows how to build it (each exposes `build.py unit <src> --id --out`)
@@ -182,7 +183,7 @@ def cmd_build(root: Path, host_scripts: list[Path] = ()) -> None:
     for attr in ("data-scene", "id"):
         found: dict[str, int] = {}
         for frag in fragments:
-            for v in re.findall(rf'\s{attr}="([^"]+)"', frag):
+            for v in attr_values(frag, attr)[attr]:
                 found[v] = found.get(v, 0) + 1
         dup = sorted(k for k, c in found.items() if c > 1)
         if dup:
