@@ -51,6 +51,7 @@ import imageio_ffmpeg
 
 SKILL_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SKILL_DIR.parents[1] / "scripts"))
+from markup import attr_values
 from output import export
 from voice_licenses import SUPPORTED_VOICES, usage_notice, voice_policy
 # shared across projects: a course rebuild reuses every sentence its lessons already synthesized
@@ -710,7 +711,7 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         f"## {c['title']}\n\n" + "\n".join(said(ln) for ln in timed if ln["chapter"] == c["id"]) for c in tl["chapters"]))
 
     scenes_html = out_implies_at((root / "scenes.html").read_text())
-    declared = set(re.findall(r'data-scene="([^"]+)"', scenes_html))
+    declared = set(attr_values(scenes_html, "data-scene")["data-scene"])
     wanted = {s["id"] for s in tl["scenes"] if s["kind"] == "scene"}
     if wanted - declared:
         die(f"{root}/scenes.html is missing sections for: {', '.join(sorted(wanted - declared))}")

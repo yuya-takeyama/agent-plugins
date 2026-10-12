@@ -23,6 +23,7 @@ jobs:
       - run: npm test
       - run: python3 -m unittest discover -s tests -v
       - run: uv run plugins/yes/skills/video/test_build.py
+      - run: uv run plugins/yes/skills/course/test_build.py
       - run: uv run --with playwright playwright install --with-deps chromium
       - run: uv run tests/smoke.py
         env:
