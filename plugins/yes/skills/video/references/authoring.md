@@ -67,7 +67,7 @@ in the script.
     "id": "clock", "title": "時計はひとつ",
     "scenes": [{"id": "clock-1", "lines": [
       "1文ずつ音声を作ります。",
-      {"text": "画面に k8s と書いても", "reading": "がめんに クバネティスと かいても", "pause": 0.8}
+      {"text": "画面に k8s と書いても", "reading": "がめんにクバネティスとかいても", "pause": 0.8}
     ]}],
     "quiz": {"q": "字幕のタイミングは何で決まる？", "a": "実測した音声の長さの時間表です。", "think": 4}
   }]
@@ -87,6 +87,12 @@ in the script.
 - Writing rules (lint enforces the mechanical ones):
   - です・ます, conversational. 25–40 chars per line, never over 60.
   - Numbers in digits (`16回`, `3分から6分`) read fine; letters need readings.
+  - Every 、 is a pause in speech, so a sentence with many reads haltingly.
+    Join a list with と (`有料の基盤と外部の DB`), drop the 、 after a
+    short subject (`Void は Vite の…`), and keep it where a listener needs
+    a breath. Lint warns at three. Spaces are not pauses: the build drops
+    every space next to Japanese, so `有料の Workers` and the reading
+    `ワーカーズ フォー プラットフォームズ` both run on.
   - Roughly 300 chars ≈ 1 minute. A chapter is 3–6 minutes and one claim.
   - Chapter shape: hook (question / surprise / common misconception) →
     concrete example → mechanism, built up step by step → name it → pitfall
