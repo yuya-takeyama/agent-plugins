@@ -204,8 +204,9 @@ def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> li
         t = ln["text"]
         if len(t) > LINE_WARN:
             warns.append(f"{ln['id']}: {len(t)} chars (> {LINE_WARN}); split the sentence")
-        if t.count("、") >= COMMA_WARN:
-            warns.append(f"{ln['id']}: {t.count('、')} 読点, each a pause in speech; join a list with と or split the sentence")
+        commas = reading_of(ln, readings).count("、")
+        if commas >= COMMA_WARN:
+            warns.append(f"{ln['id']}: {commas} 読点, each a pause in speech; join a list with と or split the sentence")
         if DEICTIC.search(t):
             warns.append(f"{ln['id']}: deictic phrase '{DEICTIC.search(t).group()}' — name the thing so audio-only works")
         if not ln.get("reading"):

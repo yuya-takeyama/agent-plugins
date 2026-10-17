@@ -151,9 +151,11 @@ class ReadingTest(unittest.TestCase):
 
     def test_three_commas_warn(self):
         lines = [{"id": "a", "text": "前提は、有料の基盤、外部の DB、ドメインです。"},
-                 {"id": "b", "text": "前提は、有料の基盤と外部の DB です。"}]
+                 {"id": "b", "text": "前提は、有料の基盤と外部の DB です。"},
+                 {"id": "c", "text": "前提は、有料の基盤、外部の DB、ドメインです。",
+                  "reading": "前提は有料の基盤と外部のディービーとドメインです。"}]
         warns = [w for w in build.lint(lines, {"DB": "ディービー"}) if "読点" in w]
-        self.assertEqual([w.split(":")[0] for w in warns], ["a"])
+        self.assertEqual([w.split(":")[0] for w in warns], ["a"])  # c's reading already joined the list
 
 
 class MouthTest(unittest.TestCase):
