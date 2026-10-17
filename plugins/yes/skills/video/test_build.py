@@ -345,6 +345,34 @@ class VoicevoxCommandTest(unittest.TestCase):
         self.assertEqual(speakers[0]["terms_url"], "https://zunko.jp/con_ongen_kiyaku.html")
 
 
+    def test_speaker_list_waits_out_a_saturated_endpoint(self):
+        flaky = self.tmp / "flaky-tts"
+        flaky.write_text(textwrap.dedent(f"""\
+            #!{sys.executable}
+            import os, sys
+            count = os.path.join(os.environ["FAKE_TTS_LOG"] + ".n")
+            n = int(open(count).read()) if os.path.exists(count) else 0
+            open(count, "w").write(str(n + 1))
+            if n < 2:
+                sys.exit("speakers API returned HTTP " + ("429: Rate Exceeded" if n == 0 else "503: Speakers unavailable"))
+            os.execv({json.dumps(str(self.tmp / "fake-tts"))}, sys.argv)
+        """))
+        flaky.chmod(0o755)
+        with patch.dict(os.environ, {"YES_TTS_CMD": str(flaky)}), patch.object(build.time, "sleep") as sleep:
+            styles = build.style_ids(build.list_speakers())
+        self.assertEqual(styles[("ずんだもん", "ノーマル")], 3)
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [1, 2])
+
+    def test_other_failures_are_not_retried(self):
+        broken = self.tmp / "broken-tts"
+        broken.write_text(f"#!{sys.executable}\nimport sys\nsys.exit('unknown character')\n")
+        broken.chmod(0o755)
+        with patch.dict(os.environ, {"YES_TTS_CMD": str(broken)}), patch.object(build.time, "sleep") as sleep, \
+                self.assertRaises(RuntimeError):
+            build.list_speakers()
+        sleep.assert_not_called()
+
+
 class FilesBackendTest(unittest.TestCase):
     """YES_TTS_FILES: the agent writes the WAVs that tts-plan lists; build never runs a command."""
 

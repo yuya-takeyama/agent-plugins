@@ -294,6 +294,17 @@ def tts_cmd() -> list[str]:
     return cmd
 
 
+def run_tts(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Run a TTS command, waiting out the shared VOICEVOX endpoint when it is saturated:
+    429 when several builds run at once, 503 when its speaker list is not ready yet."""
+    for attempt in range(6):
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0 or not re.search(r"HTTP (429|503)\b", r.stderr):
+            return r
+        time.sleep(2 ** attempt)
+    return r
+
+
 def list_speakers() -> list[dict]:
     """`<tts> --list-speakers --json` (or YES_TTS_SPEAKERS): [{name, styles: [{name, id, type}], credit}]."""
     if backend()["kind"] == "files":
@@ -302,7 +313,7 @@ def list_speakers() -> list[dict]:
             raise RuntimeError("YES_TTS_FILES needs YES_TTS_SPEAKERS, the engine's speaker list as JSON")
         result = json.loads(Path(path).read_text())
     else:
-        r = subprocess.run([*tts_cmd(), "--list-speakers", "--json"], capture_output=True, text=True)
+        r = run_tts([*tts_cmd(), "--list-speakers", "--json"])
         if r.returncode != 0:
             raise RuntimeError(r.stderr.strip() or f"exit {r.returncode}")
         result = json.loads(r.stdout)
@@ -450,12 +461,7 @@ def synth(lines: list[dict], readings: dict, cache: Path, speed: float) -> dict[
             cmd = [*tts, "--text", spoken, "-o", str(tmp), "--force", "--speed", str(speed)]
             if style_id is not None:
                 cmd += ["--speaker", str(style_id)]
-            for attempt in range(6):
-                r = subprocess.run(cmd, capture_output=True, text=True)
-                # the shared VOICEVOX endpoint answers 429 when several builds run at once
-                if r.returncode == 0 or "429" not in r.stderr:
-                    break
-                time.sleep(2 ** attempt)
+            r = run_tts(cmd)
             if r.returncode != 0:
                 return f"{spoken[:30]}…: {r.stderr.strip()}"
             os.replace(tmp, path)
