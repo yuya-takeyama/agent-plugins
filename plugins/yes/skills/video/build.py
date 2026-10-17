@@ -68,6 +68,9 @@ LINE_WARN = 60
 CPS_WARN = 7.5
 DEICTIC = re.compile(r"この図|この部分|ここを|ここで見|こちら|この赤|この青|これを見")
 ASCII_WORD = re.compile(r"[A-Za-z][A-Za-z0-9.+#'-]*")
+# VOICEVOX pauses 0.3-0.6 s at every space, so only spaces between two ASCII words survive
+JA_SPACE = re.compile(r"(?<=[^\x00-\x7f])[ \u3000]+|[ \u3000]+(?=[^\x00-\x7f])")
+COMMA_WARN = 3
 CHARACTERS = SKILL_DIR / "characters"
 DEFAULT_STYLE = "ノーマル"
 DEFAULT_FACE = "normal"
@@ -169,7 +172,7 @@ def flatten(script: dict, cast: list[str] | None = None) -> list[dict]:
 
 def reading_of(line: dict, readings: dict) -> str:
     if line.get("reading"):
-        return line["reading"]
+        return JA_SPACE.sub("", line["reading"])
     text = line["text"]
     for surface in sorted(readings, key=len, reverse=True):
         # ASCII surfaces match whole words only, so "AI" never fires inside "MAIN"
@@ -177,7 +180,7 @@ def reading_of(line: dict, readings: dict) -> str:
         if surface.isascii():
             pat = rf"(?<![A-Za-z0-9]){pat}(?![A-Za-z0-9])"
         text = re.sub(pat, lambda _, r=readings[surface]: r, text)
-    return text
+    return JA_SPACE.sub("", text)
 
 
 # ---------- lint ----------
@@ -201,6 +204,9 @@ def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> li
         t = ln["text"]
         if len(t) > LINE_WARN:
             warns.append(f"{ln['id']}: {len(t)} chars (> {LINE_WARN}); split the sentence")
+        commas = reading_of(ln, readings).count("、")
+        if commas >= COMMA_WARN:
+            warns.append(f"{ln['id']}: {commas} 読点, each a pause in speech; join a list with と or split the sentence")
         if DEICTIC.search(t):
             warns.append(f"{ln['id']}: deictic phrase '{DEICTIC.search(t).group()}' — name the thing so audio-only works")
         if not ln.get("reading"):
