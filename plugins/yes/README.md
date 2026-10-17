@@ -2,6 +2,7 @@
 
 | Skill | Output |
 | --- | --- |
+| design | Learning brief (objectives, misconceptions, sequence, aligned checks) or a rubric review of a draft |
 | explain | Scrollable explanation with examples and sources |
 | slides | Responsive slide deck with progressive reveals |
 | quiz | Multiple-choice comprehension checks with feedback |
@@ -36,7 +37,7 @@ The demo's voice and artwork retain their own
 /plugin install yes@yuya-plugins
 ```
 
-Use `/yes:explain`, `/yes:slides`, `/yes:quiz`, `/yes:video`,
+Use `/yes:design`, `/yes:explain`, `/yes:slides`, `/yes:quiz`, `/yes:video`,
 `/yes:zundamon-video`, or `/yes:course`. Plugin metadata provides the namespace;
 individual skills retain short names.
 
