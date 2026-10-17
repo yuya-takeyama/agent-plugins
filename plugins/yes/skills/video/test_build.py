@@ -134,6 +134,30 @@ class FlattenTest(unittest.TestCase):
             self.assertFalse({"who", "style", "face"} & ln.keys())
 
 
+class ReadingTest(unittest.TestCase):
+    READINGS = {"Workers for Platforms": "ワーカーズ フォー プラットフォームズ", "PostgreSQL": "ポストグレスキューエル"}
+
+    def test_spaces_next_to_japanese_are_not_spoken(self):
+        line = {"text": "前提は、有料の Workers for Platforms、外部の PostgreSQL です。"}
+        self.assertEqual(build.reading_of(line, self.READINGS),
+                         "前提は、有料のワーカーズフォープラットフォームズ、外部のポストグレスキューエルです。")
+
+    def test_explicit_reading_loses_its_spaces_too(self):
+        line = {"text": "k8s", "reading": "がめんに　クバネティスと かいても"}
+        self.assertEqual(build.reading_of(line, {}), "がめんにクバネティスとかいても")
+
+    def test_space_between_unread_english_words_stays(self):
+        self.assertEqual(build.reading_of({"text": "使うのは Hello World だけ"}, {}), "使うのはHello Worldだけ")
+
+    def test_three_commas_warn(self):
+        lines = [{"id": "a", "text": "前提は、有料の基盤、外部の DB、ドメインです。"},
+                 {"id": "b", "text": "前提は、有料の基盤と外部の DB です。"},
+                 {"id": "c", "text": "前提は、有料の基盤、外部の DB、ドメインです。",
+                  "reading": "前提は有料の基盤と外部のディービーとドメインです。"}]
+        warns = [w for w in build.lint(lines, {"DB": "ディービー"}) if "読点" in w]
+        self.assertEqual([w.split(":")[0] for w in warns], ["a"])  # c's reading already joined the list
+
+
 class MouthTest(unittest.TestCase):
     def test_silence_voice_silence(self):
         levels = build.mouth_levels(pcm((frame(5), 0), (frame(10), 12000), (frame(5), 0)))
