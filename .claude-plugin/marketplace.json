@@ -8,6 +8,11 @@
       "name": "yes",
       "source": "./plugins/yes",
       "description": "Yuya\u2019s Explainer Skills"
+    },
+    {
+      "name": "grasp",
+      "source": "./plugins/grasp",
+      "description": "Learning-science design and review for explainer content"
     }
   ],
   "metadata": {
