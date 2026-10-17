@@ -62,7 +62,7 @@ for base in (ROOT/'plugins',ROOT/'docs'):
         if path.suffix in ('.html','.js','.css'):
             expect(not re.search(r'https://(?:fonts.googleapis|fonts.gstatic)',text),f'{path}: external font dependency')
 
-expect(set(x.name for x in (ROOT/'plugins/yes/skills').iterdir())=={'explain','slides','quiz','video','zundamon-video','course'},'Unexpected skill scope')
+expect(set(x.name for x in (ROOT/'plugins/yes/skills').iterdir())=={'design','explain','slides','quiz','video','zundamon-video','course'},'Unexpected skill scope')
 if errors:
     raise SystemExit('\n'.join(errors))
 print('Catalogs, skills, links, and publication boundary: OK')

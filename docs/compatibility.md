@@ -1,6 +1,6 @@
 # Compatibility
 
-The supported distribution unit is a complete plugin (YES or grasp). Skills have local
+The supported distribution unit is the complete YES plugin. Skills have local
 names (`slides`) and acquire a namespace (`yes:slides`) when the host loads the
 plugin. Claude Code uses its manifest; Codex uses the portable Agent Plugins
 manifest and a separate marketplace catalog. Both catalogs reference the same

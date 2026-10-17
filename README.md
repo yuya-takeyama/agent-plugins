@@ -8,7 +8,6 @@ instructions, usage guide, and requirements.
 | Plugin | Description |
 | --- | --- |
 | [YES — Yuya’s Explainer Skills](plugins/yes/README.md) | Portable HTML explanations, slides, quizzes, narrated videos, and courses |
-| [grasp](plugins/grasp/README.md) | Learning-science design and review for explainer content |
 
 ## Contributing
 

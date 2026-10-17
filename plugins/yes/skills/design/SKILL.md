@@ -1,9 +1,9 @@
 ---
-name: learning-design
-description: Design or review explainer content so the learner ends up able to explain, choose, or debug on their own, using evidence from cognitive and learning science. Use before writing any article, slide deck, narrated or dialogue video, quiz, course, or code walkthrough meant to teach someone, and when asked whether such a draft teaches well. Produces a design brief or a rubric review; the output format itself comes from the format skill (for example yes:explain or yes:course).
+name: design
+description: Design or review explainer content so the learner ends up able to explain, choose, or debug on their own, using evidence from cognitive and learning science. Use before writing any article, slide deck, narrated or dialogue video, quiz, course, or code walkthrough meant to teach someone, and when asked whether such a draft teaches well. Produces a learning brief or a rubric review; the sibling explain, slides, quiz, video, zundamon-video, and course skills then render it.
 ---
 
-# learning-design
+# design
 
 Content that feels clear is not the same as content that teaches. A fluent
 explainer raises the learner's confidence without raising what they can do
@@ -14,8 +14,9 @@ learner must be able to do afterwards without the material and without AI.
 Two entry points:
 
 - **Designing.** Before any draft exists, write the brief below, then hand it
-  to whatever skill renders the format. Keep the brief in the working
-  directory as `learning-brief.md` so writers and reviewers share it.
+  to the sibling skill that renders the format, or to any other format.
+  Keep the brief in the working directory as `learning-brief.md` so writers
+  and reviewers share it.
 - **Reviewing.** Grade an existing draft against
   [the rubric](references/rubric.md). Report each failed row with the location
   in the draft and the concrete fix. Fix the draft when asked to.
