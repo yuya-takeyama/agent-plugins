@@ -29,7 +29,9 @@ with wave.open(sys.argv[sys.argv.index('-o')+1], 'wb') as w:
 ''')
 import shlex
 # The fake engine is not VOICEVOX: its credit and terms come from the scripts.
-env=dict(os.environ,EV_TTS_CMD=shlex.join([sys.executable,str(fake)]),YES_TTS_ENGINE='other',EV_TTS_CACHE=str(work/'cache'))
+# The developer's shell may pick a speech backend; the same keys video/test_build.py clears.
+env={k:v for k,v in os.environ.items() if k not in ('YES_TTS_CMD','EV_TTS_CMD','YES_TTS_FILES','YES_TTS_ENGINE','YES_TTS_SPEAKERS')}
+env.update(YES_TTS_CMD=shlex.join([sys.executable,str(fake)]),YES_TTS_ENGINE='other',EV_TTS_CACHE=str(work/'cache'))
 def run(kind,*args):
     subprocess.run([sys.executable,str(SKILLS/kind/'build.py'),*map(str,args)],env=env,check=True)
 
