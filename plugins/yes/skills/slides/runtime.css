@@ -37,6 +37,9 @@ a { color: var(--accent); }
 /* a deck inside a course unit: the unit box is the frame, so nothing is fixed to the window */
 .ss-frame { position: absolute; inset: 0; overflow: hidden; }
 .ss-frame .deck, .ss-frame .ss-bar, .ss-frame .ss-pop { position: absolute; }
+/* maximized (data-ss-max): the frame in fullscreen, or without the Fullscreen API filling the window above the course */
+.ss-frame[data-ss-max] { background: var(--bg); }
+.ss-frame[data-ss-max="pseudo"] { position: fixed; z-index: 1000; }
 .ss-unit-end { position: absolute; left: 50%; bottom: calc(var(--ss-bar) + 14px); transform: translateX(-50%); z-index: 25; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .ss-unit-end[hidden] { display: none; }
 .ss-unit-end button { border: 2px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 999px; padding: 8px 20px; font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(0, 0, 0, .12); }
@@ -174,7 +177,9 @@ a { color: var(--accent); }
 @media (max-width: 520px) { .ss-opt, .ss-dots { display: none !important; } .ss-bar button { min-width: 34px; } }
 :is(:root, .ss-frame)[data-ss-immersive] .ss-bar { background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 :is(:root, .ss-frame)[data-ss-idle] .ss-bar { opacity: 0; pointer-events: none; }
-:is(:root, .ss-frame)[data-ss-full][data-ss-idle] { cursor: none; }
+:is(:root, .ss-frame)[data-ss-max][data-ss-idle] { cursor: none; }
+.ss-fs-out, [data-ss-max] .ss-fs-in { display: none; }
+[data-ss-max] .ss-fs-out { display: inline; }
 
 .ss-pop { position: fixed; right: 12px; bottom: calc(var(--ss-bar) + 6px); z-index: 30; width: min(420px, calc(100vw - 24px)); max-height: min(70vh, 560px);
   overflow: auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .18);
