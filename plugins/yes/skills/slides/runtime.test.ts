@@ -71,7 +71,7 @@ describe('control icons', () => {
   it('draws every icon both bars use from the same path data', () => {
     const slides = icons(runtimeJs), video = icons(readFileSync(path.join(DIR, '../video/runtime.js'), 'utf8'));
     const shared = Object.keys(slides).filter((k) => k in video);
-    expect(shared).toEqual(expect.arrayContaining(['play', 'toc', 'help', 'maximize', 'restore']));
+    expect(shared).toEqual(expect.arrayContaining(['play', 'pause', 'toc', 'help', 'maximize', 'restore']));
     for (const k of shared) expect([k, video[k]]).toEqual([k, slides[k]]);
   });
 });

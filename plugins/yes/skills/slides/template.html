@@ -352,6 +352,7 @@ a { color: var(--accent); }
   // control icons: path data shared byte for byte with video/runtime.js (runtime.test.ts compares them)
   const ICONS = {
     play: 'M7 4.8v14.4L19 12z',
+    pause: 'M8 5v14M16 5v14',
     prev: 'M15 5l-7 7 7 7',
     next: 'M9 5l7 7-7 7',
     replay: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9M4.5 4.5V9H9',
@@ -714,12 +715,12 @@ a { color: var(--accent); }
     }
     function closePop() { els.pop.hidden = true; }
 
-    function stopPlay() { if (S.playing) { clearInterval(S.playing); S.playing = null; } if (els.play) els.play.setAttribute('aria-pressed', 'false'); }
+    function stopPlay() { if (S.playing) { clearInterval(S.playing); S.playing = null; } if (els.play) { els.play.setAttribute('aria-pressed', 'false'); setIcon(els.play, 'play'); } }
     function togglePlay() {
       if (S.playing) return stopPlay();
       const total = stepsOf(S.cur); if (!total) return;
       if (S.step >= total) show(S.cur, 0, false);
-      els.play.setAttribute('aria-pressed', 'true');
+      els.play.setAttribute('aria-pressed', 'true'); setIcon(els.play, 'pause');
       const ms = +deck.getAttribute('data-autoplay') || 2600;
       S.playing = setInterval(() => { if (S.step < stepsOf(S.cur)) show(S.cur, S.step + 1, true); if (S.step >= stepsOf(S.cur)) stopPlay(); }, ms);
     }
