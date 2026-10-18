@@ -9,6 +9,7 @@ not in front of you (for example audio you have not heard).
 | A1 | Objectives | One to five per piece or lesson, each an observable act about this topic. None is "understand X" or a description of the content. |
 | A2 | Alignment | Every objective has at least one check at its level, and every check maps to an objective. |
 | A3 | Substance | Checks and narration test the thing itself (mechanism, use, trade-off, pitfall), not which lesson covered it, dates, or counts. |
+| A4 | Limits | The topic's main limit or failure mode is taught and checked, not cut. |
 | L1 | Prior knowledge | The material names what it assumes. Terms the learner lacks are introduced before the mechanism that uses them. |
 | L2 | Support level | Novice material leads with a worked example. Material for experienced learners drops step-by-step support they would have to read past. |
 | S1 | Concrete first | Each abstraction appears after a concrete case that grounds it. |
@@ -19,11 +20,11 @@ not in front of you (for example audio you have not heard).
 | T2 | Prediction before reveal | At least one central idea is preceded by a prediction or question the learner attempts first. |
 | T3 | Closing recall | The material ends with retrieval (a question to answer unaided), not a recap the learner only rereads. |
 | Q1 | Distractors | Every wrong choice is plausible to a half-informed learner. Listed misconceptions and confusables appear among them. |
-| Q2 | Feedback | Every item explains why the right answer is right and what the tempting wrong answer misses. |
+| Q2 | Feedback | Every item explains why the right answer is right and what the tempting wrong answer misses (in a video, inside the narrated answer). |
 | Q3 | Answerable | Every item is answerable from what was shown. |
 | Q4 | Spacing | In a multi-part course, later checks reuse earlier parts and mix confusable items. Skip for a single piece. |
 | P1 | One claim | Each slide, scene, or section carries one claim, and its heading or first line states it. |
-| P2 | Coherence | No decoration or off-topic story. Humor stays off the line that carries the point and out of the worked example; a format's sparse in-character beats are allowed. |
+| P2 | Coherence | No decoration or off-topic story. Humor sits at the opening, transitions, or end; none in the mechanism or worked example, on a key line or its board text, or right before a check. |
 | P3 | Contiguity | Text and labels sit next to the picture part they describe. Narration and the matching visual change together. |
 | P4 | Redundancy | Narration over a dense visual is not duplicated by the same full sentence on screen. Full captions can be switched off. |
 | P5 | Dialogue | In a dialogue, the learner character voices misconceptions and deep questions. No turn is filler agreement. |

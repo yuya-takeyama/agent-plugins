@@ -158,6 +158,20 @@ class ReadingTest(unittest.TestCase):
         self.assertEqual([w.split(":")[0] for w in warns], ["a"])  # c's reading already joined the list
 
 
+class QuizEchoTest(unittest.TestCase):
+    def lines(self, before):
+        return [{"id": "c1-1.0", "scene": "c1-1", "chapter": "c1", "text": before},
+                {"id": "c1-quiz.0", "scene": "c1-quiz", "chapter": "c1", "text": "範囲検索で2件目以降を読むとき、根に戻りますか。"},
+                {"id": "c1-quiz.1", "scene": "c1-quiz", "chapter": "c1", "text": "戻りません。つながった葉のページを横にたどります。"}]
+
+    def test_answer_spoken_just_before_warns(self):
+        warns = build.quiz_echo_warnings(self.lines("根には戻らず、つながった葉のページを横にたどります。"))
+        self.assertEqual([w.split(":")[0] for w in warns], ["c1-quiz.1"])
+
+    def test_unrelated_lead_in_passes(self):
+        self.assertEqual(build.quiz_echo_warnings(self.lines("では、範囲を読むときはどうなるでしょう。")), [])
+
+
 class MouthTest(unittest.TestCase):
     def test_silence_voice_silence(self):
         levels = build.mouth_levels(pcm((frame(5), 0), (frame(10), 12000), (frame(5), 0)))

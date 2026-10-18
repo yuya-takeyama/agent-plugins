@@ -34,8 +34,10 @@ the content ("explains X" is not an objective).
 1. **Learner.** Who they are, what they already know, which terms they lack.
    A guess is fine; label it. Prior knowledge decides most choices below.
 2. **Objectives.** One to five things the learner can do afterwards per
-   piece (per lesson in a course), each an observable act: explain why, choose between, predict what happens,
-   find the bug in. Pick the few that matter and drop the rest.
+   piece (per lesson in a course), each an observable act: explain why,
+   choose between, predict what happens, find the bug in. Pick the few that
+   matter and drop the rest, but keep the topic's main limit or failure mode
+   as an objective or a misconception.
 3. **Misconceptions and confusable pairs.** The wrong models a half-informed
    learner holds, and the things they mix up. Each one is later used in a
    hook, a refutation, a dialogue line, or a distractor.
@@ -61,7 +63,7 @@ the content ("explains X" is not an objective).
    tempting wrong one gets wrong. In a course, later checks reuse earlier
    lessons' concepts and mix confusable items.
 7. **Cuts.** What you are leaving out, including interesting material that
-   does not serve an objective.
+   does not serve an objective. Never cut the main limit or failure mode.
 
 ## Presentation rules that apply to every format
 
@@ -69,12 +71,13 @@ the content ("explains X" is not an objective).
   highlight or arrow on the part being discussed.
 - Words sit next to, and play at the same time as, the picture part they
   describe.
-- Cut decoration and off-topic anecdotes. Keep humor off the line that
-  carries the point, and prefer jokes that act out the topic. Keep the
-  worked example and the mechanism itself serious; a humorous example lowered
-  retention and transfer in an experiment. A format's sparse in-character
-  beats are its default, not decoration to cut.
-  An analogy states where it breaks.
+- Cut decoration and off-topic anecdotes. Put humor at the opening, at
+  transitions, and at the end. Keep it out of the mechanism and the worked
+  example, off the line and board text that carry the point, and out of the
+  lead-in to a check; a lesson whose examples were made humorous was
+  retained and transferred worse. A joke about the topic belongs on the
+  learner's misreading, never on the statement of the correct idea.
+- An analogy states where it breaks.
 - Talk to the learner in a conversational register.
 - With narration over a dense diagram, show key terms on screen rather than
   the full sentence. Full captions stay available and can be switched off.

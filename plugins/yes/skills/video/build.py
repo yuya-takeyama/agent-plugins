@@ -198,6 +198,9 @@ def out_implies_at(scenes_html: str) -> str:
     return OPEN_TAG.sub(fix, scenes_html)
 
 
+QUIZ_ECHO_WARN = 0.35
+
+
 def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> list[str]:
     warns = []
     for ln in lines:
@@ -221,6 +224,26 @@ def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> li
         # the dialogue layout has room for two caption lines between the characters
         if "who" in ln and len(caption_chunks(t)) > 2:
             warns.append(f"{ln['id']}: caption runs over 2 lines; split the sentence")
+    warns += quiz_echo_warnings(lines)
+    return warns
+
+
+def _bigrams(text: str) -> set[str]:
+    t = re.sub(r"[\s、。！？!?「」（）()・,.:：…]", "", text)
+    return {t[i:i + 2] for i in range(len(t) - 1)}
+
+
+def quiz_echo_warnings(lines: list[dict]) -> list[str]:
+    """A quiz answer already spoken in the lines just before the question is an echo, not recall."""
+    warns = []
+    for i, ln in enumerate(lines):
+        if not ln.get("scene", "").endswith("-quiz") or i == 0 or lines[i - 1].get("scene") != ln.get("scene"):
+            continue
+        before = [x["text"] for x in lines[max(0, i - 4):i - 1] if x.get("chapter") == ln.get("chapter")]
+        answer = _bigrams(ln["text"])
+        if answer and len(answer & _bigrams(" ".join(before))) / len(answer) >= QUIZ_ECHO_WARN:
+            warns.append(f"{ln['id']}: the quiz answer repeats the lines just before the question; "
+                         "end the chapter on something the answer does not restate")
     return warns
 
 

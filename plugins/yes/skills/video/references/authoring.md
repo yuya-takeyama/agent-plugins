@@ -99,7 +99,11 @@ in the script.
     contrast). When the brief leaves the choice open, use: hook (question / surprise /
     common misconception) → concrete example → mechanism, built up step by
     step → name it → pitfall → quiz. The quiz is the chapter's last word;
-    a summary before it turns recall into an echo.
+    a summary before it turns recall into an echo (lint warns when the
+    answer repeats the lines just before the question).
+  - The quiz asks the viewer to apply the chapter to a new case, not to
+    repeat a line. Its narrated answer gives the reason and, in a few words,
+    what the tempting wrong answer misses.
   - A chapter whose brief sequence is refutation opens on that misconception,
     says plainly that it is wrong, and resolves it before the quiz.
   - `"goals"` are the brief's objectives as observable acts

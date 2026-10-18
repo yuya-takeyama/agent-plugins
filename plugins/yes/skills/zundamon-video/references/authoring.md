@@ -52,9 +52,12 @@ The dialogue adds these rules:
    a real restatement, not 「なるほどなのだ」.
 4. **Two caption lines per utterance**, about 40 characters. Lint warns past
    that; split the sentence or give part of it to the other character.
-5. **Humour is seasoning.** One small ズレ every 30–60 s, one sentence, never
-   on the line that carries the key point. The best ズレ acts out a
-   misreading of the topic. Cheap in-character gags:
+5. **Humour has its places**: the つかみ, a scene change, and the closing
+   exchange. Keep it out of scenes that walk through a mechanism or a worked
+   example, off the line and the board text that carry the key point, and
+   out of the last scene before a quiz. A topical ズレ belongs on ずんだもん's
+   misreading, which めたん then corrects; it never rides on the line that
+   states the correct idea. Cheap in-character gags:
    めたん's 金欠 and 中二病, ずんだもん being ないがしろにされる.
 6. **Chapters** of 2–4 minutes. Each ends with the quiz, not a summary that
    gives its answer away. Quiz questions are usually めたん's (`q_who`); letting
