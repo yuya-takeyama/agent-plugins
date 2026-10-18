@@ -57,3 +57,7 @@ plugins/yes/bin/yes-speak --stop
 The CI voicevox job runs this against the official Docker image. Generated
 speech must still be listened to for pronunciation when authoring a real lesson.
 Neither unit tests nor screenshots establish teaching quality.
+
+Changes to the design skill or to a format skill's content rules are measured
+by regenerating videos and comparing them blind with earlier versions; see
+[Measuring the design skill](../evals/design/README.md).
