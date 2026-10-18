@@ -57,7 +57,10 @@ A command is treated as VOICEVOX unless `YES_TTS_ENGINE=other` declares a
 different engine; then set `"credit"` (and `usageTerms`) in script.json. Never
 declare VOICEVOX output as `other`.
 
-Run `lint`, then `build`, then `shoot`, and inspect every scene screenshot.
+After `lint` is clean, have the script reviewed by someone who did not write
+it, a fresh subagent when the host has them, against the sibling `design`
+skill's rubric. Apply every fix, cutting humor outside its places, and lint
+again. Then run `build`, then `shoot`, and inspect every scene screenshot.
 `check` drives the built page (maximize, fallback) and must print only `ok`.
 The screenshot command uses installed Chrome; `YES_BROWSER_CHANNEL=''` selects
 Playwright Chromium instead. Review pronunciation and the standalone transcript.

@@ -18,7 +18,9 @@ Two entry points:
   Keep the brief in the working directory as `learning-brief.md` so writers
   and reviewers share it.
 - **Reviewing.** Grade an existing draft against
-  [the rubric](references/rubric.md). Report each failed row with the location
+  [the rubric](references/rubric.md). The reviewer did not write the draft:
+  a fresh subagent when the host has them, so the writer's intent does not
+  fill in what the draft leaves out. Report each failed row with the location
   in the draft and the concrete fix. Fix the draft when asked to.
 
 [The principles](references/principles.md) hold the evidence, boundary
@@ -76,7 +78,8 @@ the content ("explains X" is not an objective).
   example, off the line and board text that carry the point, and out of the
   lead-in to a check; a lesson whose examples were made humorous was
   retained and transferred worse. A joke about the topic belongs on the
-  learner's misreading, never on the statement of the correct idea.
+  learner's misreading, never on the statement of the correct idea. A joke
+  outside these places is cut, not moved.
 - An analogy states where it breaks.
 - Talk to the learner in a conversational register.
 - With narration over a dense diagram, show key terms on screen rather than

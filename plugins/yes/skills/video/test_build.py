@@ -178,6 +178,23 @@ class ClaimsTest(unittest.TestCase):
         self.assertEqual([w.split(":")[0] for w in warns], ["c1-1.2"])
 
 
+class PlacementTest(unittest.TestCase):
+    def line(self, lid, role, aside=False):
+        return {"id": lid, "scene": lid.split(".")[0], "role": role, "aside": aside, "text": "x"}
+
+    def test_humor_only_where_it_cannot_cost_learning(self):
+        lines = [self.line("c1-0.0", "hook", True), self.line("c1-1.0", "mechanism", True),
+                 self.line("c1-2.0", "transition", True), self.line("c1-2.1", "transition"),
+                 self.line("c1-2.2", "transition"), self.line("c1-2.3", "transition", True),
+                 {"id": "c1-quiz.0", "scene": "c1-quiz", "text": "q"}]
+        warns = [w.split(":")[0] for w in build.placement_warnings(lines)]
+        self.assertEqual(warns, ["c1-1.0", "c1-2.3"])
+
+    def test_scene_without_role_warns_once(self):
+        lines = [self.line("c1-1.0", None), self.line("c1-1.1", None)]
+        self.assertEqual([w.split(":")[0] for w in build.placement_warnings(lines)], ["c1-1"])
+
+
 class QuizEchoTest(unittest.TestCase):
     def lines(self, before):
         return [{"id": "c1-1.0", "scene": "c1-1", "chapter": "c1", "text": before},

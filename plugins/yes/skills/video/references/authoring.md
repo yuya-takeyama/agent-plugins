@@ -74,8 +74,12 @@ in the script.
 }
 ```
 
-- A line is a string or `{text, reading?, pause?}`. Default pauses: 0.35 s
-  between lines, 0.9 s after a scene, 1.4 s after a chapter.
+- A line is a string or `{text, reading?, pause?, aside?}`. Default pauses:
+  0.35 s between lines, 0.9 s after a scene, 1.4 s after a chapter.
+  `"aside": true` marks a line meant to amuse.
+- Every scene has a `"role"`: `hook`, `example`, `mechanism`, `transition`
+  or `close`. Lint warns on a scene without one and on an aside in an
+  `example` or `mechanism` scene or within three lines of a quiz.
 - Scene ids match `data-scene` in scenes.html. Quiz scenes
   (`<chapter>-quiz`) are generated; do not write sections for them.
 - Teach the substance: what the thing is and why it works that way, the
