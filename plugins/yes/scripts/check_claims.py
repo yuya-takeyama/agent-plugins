@@ -17,6 +17,8 @@ import hashlib
 import html
 import json
 import re
+import ssl
+import subprocess
 import sys
 import unicodedata
 import urllib.error
@@ -58,6 +60,14 @@ def readable_url(url: str) -> str:
     return url
 
 
+def curl_fetch(url: str) -> tuple[str, bytes]:
+    """curl uses the system trust store, which completes chains a server sends without its intermediate."""
+    out = subprocess.run(["curl", "-sSL", "--max-time", "30", "-A", USER_AGENT, "-w", "\n%{content_type}", url],
+                         capture_output=True, check=True).stdout
+    body, _, ctype = out.rpartition(b"\n")
+    return ctype.decode(), body
+
+
 def fetch_text(url: str) -> dict:
     try:
         req = urllib.request.Request(readable_url(url), headers={"User-Agent": USER_AGENT})
@@ -65,7 +75,14 @@ def fetch_text(url: str) -> dict:
             ctype, body = resp.headers.get("content-type", ""), resp.read()
     except urllib.error.HTTPError as e:
         return {"ok": False, "why": f"HTTP {e.code}"}
-    except (urllib.error.URLError, TimeoutError) as e:
+    except urllib.error.URLError as e:
+        if not isinstance(e.reason, ssl.SSLCertVerificationError):
+            return {"ok": False, "why": type(e.reason).__name__}
+        try:
+            ctype, body = curl_fetch(readable_url(url))
+        except (OSError, subprocess.CalledProcessError):
+            return {"ok": False, "why": "certificate chain incomplete and curl failed"}
+    except TimeoutError as e:
         return {"ok": False, "why": type(e).__name__}
     if "pdf" in ctype:
         return {"ok": False, "why": "PDF"}
