@@ -59,6 +59,15 @@ def frame(n: int) -> float:
     return n / build.MOUTH_FPS
 
 
+def setUpModule():
+    # The developer's shell may pick a speech backend; every test starts from none.
+    tts = patch.dict(os.environ)
+    tts.start()
+    unittest.addModuleCleanup(tts.stop)
+    for key in ("YES_TTS_CMD", "EV_TTS_CMD", "YES_TTS_FILES", "YES_TTS_ENGINE", "YES_TTS_SPEAKERS"):
+        os.environ.pop(key, None)
+
+
 class ScenesHtmlTest(unittest.TestCase):
     def test_lone_data_out_gets_data_at_zero(self):
         self.assertEqual(
