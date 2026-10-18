@@ -63,8 +63,9 @@ The dialogue adds these rules:
    gives its answer away. Quiz questions are usually めたん's (`q_who`); letting
    ずんだもん answer (`a_who`) shows he got it.
 7. **No subscribe prompts, no thanks-for-watching card.** End on the last
-   quiz. If the opening skit left something hanging, close it in the last
-   scene in one exchange, ideally with the
+   quiz. If the opening skit left something hanging, close it in one
+   exchange at the start of the last scene, before the lines that lead into
+   the final quiz, ideally with the
    lesson's own words (the borrowed 千円 is 語りうる, so it gets repaid).
 
 ### The opening (つかみ)
