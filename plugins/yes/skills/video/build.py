@@ -159,6 +159,7 @@ def flatten(script: dict, cast: list[str] | None = None) -> list[dict]:
                 entry = {
                     "id": f"{sc['id']}.{li}", "chapter": ch["id"], "scene": sc["id"],
                     "kind": sc.get("kind", "scene"), "idx": li,
+                    "role": sc.get("role"), "aside": bool(line.get("aside")),
                     "text": line["text"], "reading": line.get("reading"),
                     "pause": float(line.get("pause") if line.get("pause") is not None else default),
                 }
@@ -225,6 +226,32 @@ def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> li
         if "who" in ln and len(caption_chunks(t)) > 2:
             warns.append(f"{ln['id']}: caption runs over 2 lines; split the sentence")
     warns += quiz_echo_warnings(lines)
+    warns += placement_warnings(lines)
+    return warns
+
+
+ROLES = ("hook", "example", "mechanism", "transition", "close")
+NO_ASIDE_BEFORE_QUIZ = 3
+
+
+def placement_warnings(lines: list[dict]) -> list[str]:
+    """Every scene names its role; humor (`aside`) stays out of examples, mechanisms and quiz lead-ins."""
+    warns, seen = [], set()
+    for i, ln in enumerate(lines):
+        scene = ln.get("scene")
+        if not scene or scene.endswith("-quiz"):
+            continue
+        if scene not in seen:
+            seen.add(scene)
+            if ln.get("role") not in ROLES:
+                warns.append(f"{scene}: role must be one of {', '.join(ROLES)}")
+        if not ln.get("aside"):
+            continue
+        if ln.get("role") in ("example", "mechanism"):
+            warns.append(f"{ln['id']}: humor in a {ln['role']} scene; cut it")
+        ahead = lines[i + 1:i + 1 + NO_ASIDE_BEFORE_QUIZ]
+        if any(x.get("scene", "").endswith("-quiz") for x in ahead):
+            warns.append(f"{ln['id']}: humor right before a quiz; cut it")
     return warns
 
 

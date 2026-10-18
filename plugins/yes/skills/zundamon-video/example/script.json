@@ -50,6 +50,7 @@
       "scenes": [
         {
           "id": "c1-0",
+          "role": "hook",
           "lines": [
             {
               "who": "zundamon",
@@ -59,7 +60,8 @@
             {
               "who": "metan",
               "face": "jito",
-              "text": "夕方には真っ赤になるくせに、気まぐれな空ね。"
+              "text": "夕方には真っ赤になるくせに、気まぐれな空ね。",
+              "aside": true
             },
             {
               "who": "zundamon",
@@ -80,6 +82,7 @@
         },
         {
           "id": "c1-1",
+          "role": "mechanism",
           "lines": [
             {
               "who": "zundamon",
@@ -100,6 +103,7 @@
         },
         {
           "id": "c1-2",
+          "role": "mechanism",
           "lines": [
             {
               "who": "metan",
@@ -126,6 +130,7 @@
         },
         {
           "id": "c1-3",
+          "role": "mechanism",
           "lines": [
             {
               "who": "metan",
@@ -168,6 +173,7 @@
       "scenes": [
         {
           "id": "c2-1",
+          "role": "mechanism",
           "lines": [
             {
               "who": "zundamon",
@@ -207,6 +213,7 @@
         },
         {
           "id": "c2-2",
+          "role": "mechanism",
           "lines": [
             {
               "who": "zundamon",
@@ -226,12 +233,6 @@
               "who": "zundamon",
               "face": "smile",
               "text": "粒が小さいと青、大きいと白。粒の大きさで色が決まるのだ！"
-            },
-            {
-              "who": "metan",
-              "face": "smile",
-              "style": "ツンツン",
-              "text": "今日は、まとめだけはやけに上手ね。"
             }
           ]
         }
