@@ -388,6 +388,8 @@ def cmd_check(root: Path) -> None:
         check_variants_e2e(b, root, info, varied, expect)
     if video_us:
         check_maximize_e2e(b, root, info, pair, expect)
+    if slides_u:
+        check_slides_maximize_e2e(b, root, slides_u, expect)
     expect(not errors, f"no page errors {errors[:3]}")
     b.close()
     pw.stop()
@@ -559,6 +561,49 @@ def check_maximize_e2e(b, root: Path, info: dict, pair, expect) -> None:
         expect(page.evaluate("location.hash") == f"#{q['id']}" and page.evaluate(fs) is None
                and page.locator(".ev-video.ev-full").count() == 0, "the end screen's next step leaves fullscreen, then opens the quiz")
     expect(not errors, f"no page errors in the maximize checks {errors[:3]}")
+    page.close()
+
+
+def check_slides_maximize_e2e(b, root: Path, unit: dict, expect) -> None:
+    """A deck's maximize inside the shell: over the outline, out again when the learner leaves the unit or takes
+    the next step from the deck's end."""
+    spec = importlib.util.spec_from_file_location("slides_maximize_check", SKILLS / KINDS["slides"] / "maximize_check.py")
+    mx = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mx)
+    url = (root / "out" / "course.html").resolve().as_uri()
+    sel = f'.su-unit:not([hidden])[data-unit="{unit["id"]}"]'
+    mx.check_maximize(b, f"{url}#{unit['id']}", sel, expect, root / "out" / "frames", "course")
+
+    page = b.new_page(viewport={"width": 1280, "height": 800})
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    maxed = f"document.querySelector('[data-unit=\"{unit['id']}\"]').getAttribute('data-ss-max')"
+    page.goto(f"{url}#{unit['id']}")
+    page.wait_for_timeout(400)
+    page.keyboard.press("f")
+    page.wait_for_timeout(500)
+    expect(page.evaluate(maxed) == "api", "the deck is maximized before the learner leaves")
+    page.evaluate("location.hash = '#home'")
+    page.wait_for_timeout(500)
+    expect(page.evaluate(maxed) is None and page.evaluate("document.fullscreenElement") is None,
+           "leaving the unit leaves fullscreen")
+    page.evaluate(f"location.hash = {json.dumps('#' + unit['id'])}")
+    page.wait_for_timeout(400)
+    page.keyboard.press("End")
+    end = page.locator(f"{sel} .ss-unit-end")
+    for _ in range(40):  # walk the last slide's steps
+        if end.is_visible():
+            break
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(120)
+    page.keyboard.press("f")
+    page.wait_for_timeout(500)
+    expect(page.evaluate(maxed) == "api" and end.is_visible(), "the deck's end is reachable while maximized")
+    end.locator("button").first.click()
+    page.wait_for_timeout(500)
+    expect(page.evaluate("location.hash") != f"#{unit['id']}" and page.evaluate(maxed) is None
+           and page.evaluate("document.fullscreenElement") is None, "the end's next step leaves fullscreen, then moves on")
+    expect(not errors, f"no page errors in the slides maximize checks {errors[:3]}")
     page.close()
 
 

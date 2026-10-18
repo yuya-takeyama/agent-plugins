@@ -40,7 +40,7 @@ deck `<style>` for `:root`, the dark media query and `[data-theme="dark"]`.
 changes it). Wide windows scale the whole stage; when that scale drops
 below 0.45 (phones) the deck switches to flow mode: each slide becomes a
 scrolling column at readable type sizes. Landscape screens never reflow: a
-phone on its side (or fullscreen) gets the full-bleed stage with the bar
+phone on its side (or a maximized deck) gets the full-bleed stage with the bar
 floating over it, hidden after a moment and back on any tap. Safe-area
 insets (notch, home indicator) are respected, so decks work as a
 standalone PWA too. A slide whose figure is drawn in
@@ -117,7 +117,9 @@ links use `target="_blank" rel="noopener"`. A host page can resolve
 → / Space / PageDown next, ← / PageUp back, Shift+→/← skip steps, Home /
 End, digits + Enter jumps, G focuses the slide number, T or ☰ opens the
 TOC, R replays the slide's animation, P autoplays its steps
-(`data-autoplay="ms"` on `.deck`), S toggles sound (`data-sound` decks), F fullscreen (when allowed by the browser/host), horizontal swipe on touch. Decks of up to 12
+(`data-autoplay="ms"` on `.deck`), S toggles sound (`data-sound` decks), F or the maximize button (bottom right) maximizes
+(the Fullscreen API, or filling the window where the browser has none, as on
+iPhone; Esc or F again restores), horizontal swipe on touch. Decks of up to 12
 slides show dots; longer decks show a slide-number input. Printing gives
 one page per slide with every step shown.
 
@@ -129,7 +131,8 @@ A deck can be one unit of a `course` lesson (`{"kind": "slides", "src":
 the deck's own `<style>`, the `.deck` and the deck's `<script>`s and swaps in
 this runtime. Inside a course the deck fits the unit's box instead of the
 window, keys and swipes only reach the deck on screen, its position goes
-into the course's hash (`#<unit>/5.2`), there is no fullscreen, and the last
+into the course's hash (`#<unit>/5.2`), maximizing covers the outline and
+ends when the learner leaves the unit or takes the next step, and the last
 step shows the course's next action. Section slides become the lesson's
 outline. Several decks can share the page, so in a course deck: scope CSS to
 `.deck` (never `:root`; the build warns) and prefix slide ids with the

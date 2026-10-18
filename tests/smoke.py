@@ -6,6 +6,7 @@
 from pathlib import Path
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import importlib.util
 import json
 import os
 import shutil
@@ -132,6 +133,11 @@ Thread(target=server.serve_forever,daemon=True).start()
 base=f'http://127.0.0.1:{server.server_port}'
 with sync_playwright() as pw:
     browser=pw.chromium.launch(channel=os.environ.get('YES_BROWSER_CHANNEL','chrome') or None)
+    spec=importlib.util.spec_from_file_location('slides_maximize_check',SKILLS/'slides/maximize_check.py')
+    slides_max=importlib.util.module_from_spec(spec); spec.loader.exec_module(slides_max)
+    def expect(ok,what):
+        assert ok,what
+    slides_max.check_maximize(browser,base+'/slides.html','html',expect,work/'frames')
     # A text-stroke can leave stale pixels outside Chromium's invalidated bounds.
     # Compare with an empty frame rather than a platform-specific golden image.
     caption_page=browser.new_page(viewport={'width':1280,'height':720})

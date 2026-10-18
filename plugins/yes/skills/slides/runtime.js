@@ -95,6 +95,23 @@
     try { SFX[name](n); return true; } catch { return false; }
   }
 
+  // control icons: path data shared byte for byte with video/runtime.js (runtime.test.ts compares them)
+  const ICONS = {
+    play: 'M7 4.8v14.4L19 12z',
+    pause: 'M8 5v14M16 5v14',
+    prev: 'M15 5l-7 7 7 7',
+    next: 'M9 5l7 7-7 7',
+    replay: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9M4.5 4.5V9H9',
+    toc: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+    sound: 'M4 9h3l5-4v14l-5-4H4zM16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11',
+    soundOff: 'M4 9h3l5-4v14l-5-4H4zM16 9.5l5 5M21 9.5l-5 5',
+    help: 'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.5v.4M12 17h.01',
+    maximize: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+    restore: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5',
+  };
+  const setIcon = (b, name) => { b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + `<path d="${ICONS[name]}"/></svg>`; };
+
   function mk(tag, attrs, text) {
     const e = document.createElement(tag);
     for (const k in attrs || {}) e.setAttribute(k, attrs[k]);
@@ -143,17 +160,11 @@
       if (t && isFinite(t.endTime)) { try { a.finish(); } catch { /* not finishable */ } }
     });
   }
-  function toggleFull() {
-    try {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else { const p = document.documentElement.requestFullscreen(); if (p && p.catch) p.catch(() => {}); }
-    } catch { /* not allowed in this frame */ }
-  }
   function editable(t) { return t && t.closest && t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]'); }
 
   /* ---------- one deck ---------- */
   // opts.frame: the element that carries data-ss-* and the --ss-* vars (the page root for a standalone deck)
-  // opts.mount: where the bar and popover go; opts.standalone: owns the URL fragment, keys, fullscreen and the window
+  // opts.mount: where the bar and popover go; opts.standalone: owns the URL fragment and the window
   // opts.isActive(): whether keys and swipes are this deck's; opts.onChange(state, rest): position changed
   function createDeck(deck, opts) {
     const frame = opts.frame, standalone = !!opts.standalone;
@@ -162,7 +173,7 @@
     let slides = [], bar, els = {}, sceneRuns = new Map(), stepTimers = [], idleTimer = null;
     function setSound(on) {
       snd.on = !!on && !!audio();
-      if (els.sound) { els.sound.textContent = snd.on ? '🔊' : '🔇'; els.sound.setAttribute('aria-pressed', String(snd.on)); }
+      if (els.sound) { setIcon(els.sound, snd.on ? 'sound' : 'soundOff'); els.sound.setAttribute('aria-pressed', String(snd.on)); }
       if (snd.on) sfx('pop');
     }
 
@@ -276,7 +287,7 @@
     // Safe-area insets (notch, home indicator) as px, read from a probe padded with env().
     let probe = null;
     function insets() {
-      if (!standalone) return { t: 0, r: 0, b: 0, l: 0 };
+      if (!standalone && !frame.hasAttribute('data-ss-max')) return { t: 0, r: 0, b: 0, l: 0 };
       if (!probe) { probe = mk('div', { class: 'ss-probe', 'aria-hidden': 'true' }); document.body.appendChild(probe); }
       const cs = getComputedStyle(probe);
       return { t: px(cs.paddingTop), r: px(cs.paddingRight), b: px(cs.paddingBottom), l: px(cs.paddingLeft) };
@@ -284,17 +295,15 @@
     function layout() {
       const size = parseSize(deck.getAttribute('data-size'));
       const root = frame;
-      const full = standalone && !!document.fullscreenElement;
       // clientWidth/Height: innerWidth can grow past the screen on mobile when content overflows
       const box = standalone ? null : frame.getBoundingClientRect();
       const W = box ? box.width : root.clientWidth || window.innerWidth, H = box ? box.height : root.clientHeight || window.innerHeight;
       if (!W || !H) return;
       const ins = insets();
       const landscape = W > H * 1.15;
-      // short landscape screens (phones on their side) and fullscreen give the stage every pixel;
+      // short landscape screens (phones on their side) and a maximized deck give the stage every pixel;
       // the bar floats over it and hides when idle
-      const immersive = full || (standalone && landscape && H < 520);
-      root.toggleAttribute('data-ss-full', full);
+      const immersive = root.hasAttribute('data-ss-max') || (standalone && landscape && H < 520);
       root.toggleAttribute('data-ss-immersive', immersive);
       const reserve = immersive ? ins.b : (bar.offsetHeight || 48);
       const aw = W - ins.l - ins.r, ah = H - ins.t - reserve;
@@ -314,17 +323,46 @@
       poke();
     }
 
+    /* ---------- maximize: the Fullscreen API on the frame, else the frame fills the window ---------- */
+    // data-ss-max on the frame is the state: "api" | "pseudo", absent while off
+    const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+    const maxed = () => frame.getAttribute('data-ss-max') || 'off';
+    function setMax(m) {
+      if (m === 'off') frame.removeAttribute('data-ss-max'); else frame.setAttribute('data-ss-max', m);
+      const label = m === 'off' ? '全画面' : '全画面を終了';
+      els.full.setAttribute('aria-label', label); els.full.title = label + ' (F)'; setIcon(els.full, m === 'off' ? 'maximize' : 'restore');
+      layout();
+    }
+    function enterMax() {
+      if (maxed() !== 'off') return;
+      const req = frame.requestFullscreen || frame.webkitRequestFullscreen;
+      const enabled = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
+      if (!req || enabled === false) return setMax('pseudo');
+      // fullscreenchange marks the real one; a refusal falls back to filling the window
+      try { Promise.resolve(req.call(frame)).catch(() => { if (maxed() === 'off') setMax('pseudo'); }); } catch { setMax('pseudo'); }
+    }
+    function exitMax() {
+      if (maxed() === 'off') return;
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (fsEl() === frame && exit) Promise.resolve(exit.call(document)).catch(() => {});
+      setMax('off');
+    }
+    const toggleMax = () => (maxed() === 'off' ? enterMax() : exitMax());
+    // the browser's own exit (its Esc, a gesture) ends "api" too
+    const onFsChange = () => setMax(fsEl() === frame ? 'api' : maxed() === 'api' ? 'off' : maxed());
+
     /* ---------- chrome ---------- */
-    function btn(label, aria, onClick) {
-      const b = mk('button', { type: 'button', 'aria-label': aria, title: aria }, label);
+    function btn(icon, aria, onClick) {
+      const b = mk('button', { type: 'button', 'aria-label': aria, title: aria });
+      if (icon) setIcon(b, icon);
       b.addEventListener('click', e => { e.stopPropagation(); onClick(); b.blur(); });
       return b;
     }
     function buildChrome() {
       bar = mk('nav', { class: 'ss-bar', 'aria-label': 'スライド操作' });
       els.prog = mk('div', { class: 'ss-prog' });
-      els.prev = btn('←', '前へ (←)', () => { stopPlay(); prev(); });
-      els.next = btn('→', '次へ (→ / Space)', () => { stopPlay(); next(); });
+      els.prev = btn('prev', '前へ (←)', () => { stopPlay(); prev(); });
+      els.next = btn('next', '次へ (→ / Space)', () => { stopPlay(); next(); });
       els.mid = mk('div', { class: 'ss-mid' });
       if (S.n <= DOTS_MAX) {
         els.dots = mk('div', { class: 'ss-dots', role: 'group', 'aria-label': 'スライド' });
@@ -350,19 +388,20 @@
       els.title = mk('span', { class: 'ss-title' });
       els.mid.append(els.pips);
       els.tools = mk('div', { class: 'ss-tools' });
-      els.play = btn('▶', '自動再生 (P)', togglePlay);
-      els.replay = btn('↺', 'アニメーションを最初から (R)', replay);
-      els.toc = btn('☰', '目次 (T)', () => togglePop('toc'));
-      els.help = btn('?', 'キー操作 (?)', () => togglePop('help'));
+      els.play = btn('play', '自動再生 (P)', togglePlay);
+      els.replay = btn('replay', 'アニメーションを最初から (R)', replay);
+      els.toc = btn('toc', '目次 (T)', () => togglePop('toc'));
+      els.help = btn('help', 'キー操作 (?)', () => togglePop('help'));
       els.tools.append(els.play, els.replay, els.toc);
       if (deck.hasAttribute('data-sound')) {
-        els.sound = btn('🔇', '効果音 (S)', () => setSound(!snd.on));
+        els.sound = btn('soundOff', '効果音 (S)', () => setSound(!snd.on));
         els.sound.setAttribute('aria-pressed', 'false');
         els.tools.append(els.sound);
       }
-      if (standalone && document.fullscreenEnabled) els.tools.append(els.full = btn('⛶', '全画面 (F)', toggleFull));
-      els.tools.append(els.help);
-      [els.full, els.help].forEach(b => b && b.classList.add('ss-opt'));
+      // it stays on narrow screens, where a tap is the only way in
+      els.full = btn('maximize', '全画面', toggleMax); els.full.title = '全画面 (F)'; els.full.classList.add('ss-fs');
+      els.help.classList.add('ss-opt');
+      els.tools.append(els.full, els.help);
       const center = mk('div', { class: 'ss-center' });
       center.append(els.prev, els.mid, els.next);
       bar.append(els.prog, els.title, center, els.tools);
@@ -406,7 +445,7 @@
     }
     const KEYS = [['→ / Space / PageDown', '次へ（ステップ → スライド）'], ['← / PageUp', '前へ'], ['Shift + → / ←', 'ステップを飛ばしてスライド移動'],
       ['Home / End', '最初 / 最後'], ['数字 → Enter', 'そのスライドへ'], ['G', 'スライド番号を入力 / 目次'], ['T', '目次'], ['R', 'アニメーションを最初から'],
-      ['P', 'ステップを自動再生'], ['S', '効果音 オン / オフ（対応デッキ）'], ['F', '全画面'], ['スワイプ', '左右でページ送り'], ['Esc', '閉じる']];
+      ['P', 'ステップを自動再生'], ['S', '効果音 オン / オフ（対応デッキ）'], ['F', '全画面 / 終了'], ['スワイプ', '左右でページ送り'], ['Esc', '閉じる / 全画面を終了']];
     function renderHelp() {
       els.pop.replaceChildren(mk('h4', {}, 'キー操作'));
       const dl = mk('div', { class: 'ss-keys' });
@@ -422,19 +461,19 @@
     }
     function closePop() { els.pop.hidden = true; }
 
-    function stopPlay() { if (S.playing) { clearInterval(S.playing); S.playing = null; } if (els.play) els.play.setAttribute('aria-pressed', 'false'); }
+    function stopPlay() { if (S.playing) { clearInterval(S.playing); S.playing = null; } if (els.play) { els.play.setAttribute('aria-pressed', 'false'); setIcon(els.play, 'play'); } }
     function togglePlay() {
       if (S.playing) return stopPlay();
       const total = stepsOf(S.cur); if (!total) return;
       if (S.step >= total) show(S.cur, 0, false);
-      els.play.setAttribute('aria-pressed', 'true');
+      els.play.setAttribute('aria-pressed', 'true'); setIcon(els.play, 'pause');
       const ms = +deck.getAttribute('data-autoplay') || 2600;
       S.playing = setInterval(() => { if (S.step < stepsOf(S.cur)) show(S.cur, S.step + 1, true); if (S.step >= stepsOf(S.cur)) stopPlay(); }, ms);
     }
     function poke() {
       frame.removeAttribute('data-ss-idle');
       clearTimeout(idleTimer);
-      if (document.fullscreenElement || frame.hasAttribute('data-ss-immersive')) {
+      if (frame.hasAttribute('data-ss-immersive')) {
         idleTimer = setTimeout(() => { if (els.pop.hidden) frame.setAttribute('data-ss-idle', ''); }, 2600);
       }
     }
@@ -446,7 +485,7 @@
       if (editable(e.target)) return;
       const inSlideControl = e.target.closest && e.target.closest('.slide button, .slide a[href], .slide summary');
       const k = e.key;
-      if (k === 'Escape') { closePop(); digits = ''; return; }
+      if (k === 'Escape') { digits = ''; if (!els.pop.hidden) closePop(); else exitMax(); return; }
       if (/^[0-9]$/.test(k)) { digits += k; clearTimeout(digitsTimer); digitsTimer = setTimeout(() => { digits = ''; }, 1600); return; }
       if (k === 'Enter' && digits) { e.preventDefault(); const v = +digits; digits = ''; if (v >= 1 && v <= S.n) jump(v - 1); return; }
       const fitNav = S.mode === 'fit';
@@ -463,7 +502,7 @@
       else if (lk === 't' || lk === 'o') togglePop('toc');
       else if (lk === 'r') { stopPlay(); replay(); }
       else if (lk === 'p') togglePlay();
-      else if (lk === 'f' && standalone) toggleFull();
+      else if (lk === 'f') { e.preventDefault(); toggleMax(); }
       else if (lk === 's' && els.sound) setSound(!snd.on);
       else if (k === '?') togglePop('help');
     }
@@ -491,10 +530,11 @@
     layout();
     if (standalone) {
       window.addEventListener('resize', layout);
-      document.addEventListener('fullscreenchange', layout);
       // a fragment cleared from the address bar (or by the viewer) means the opening state
       window.addEventListener('hashchange', () => { if (!readHash() && location.hash === '') show(0, 0, false); });
     } else if (window.ResizeObserver) new ResizeObserver(layout).observe(frame);
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
     document.addEventListener('keydown', onKey);
     document.addEventListener('touchstart', onTouchStart, { passive: true });
     document.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -502,7 +542,7 @@
     document.addEventListener('pointerdown', poke, { passive: true });
 
     const self = {
-      deck, show, next, prev, jump, replay, layout, stepsOf, readHash, setSound, stopPlay, closePop,
+      deck, show, next, prev, jump, replay, layout, stepsOf, readHash, setSound, stopPlay, closePop, exitMax,
       resetSteps() { slides.forEach(s => { delete s._ssSteps; }); },
       get state() { return { slide: S.cur, step: S.step, steps: stepsOf(S.cur), count: S.n, mode: S.mode }; },
     };
@@ -556,7 +596,8 @@
         endRow.replaceChildren();
         if (end) for (const a of host.endActions()) {
           const b = mk('button', a.primary ? { type: 'button', class: 'primary' } : { type: 'button' }, a.label);
-          b.addEventListener('click', a.run); endRow.appendChild(b);
+          // the next step leaves this unit: drop out of the maximized deck first
+          b.addEventListener('click', () => { d.exitMax(); a.run(); }); endRow.appendChild(b);
         }
         endRow.hidden = !end;
         host.setRest(rest);
@@ -570,7 +611,7 @@
         if (!(rest && d.readHash('#' + rest))) { if (!opened) d.show(0, 0, true); else d.show(d.state.slide, d.state.step, false); }
         opened = true;
       },
-      hide() { active = false; d.stopPlay(); d.closePop(); root.hidden = true; },
+      hide() { d.exitMax(); active = false; d.stopPlay(); d.closePop(); root.hidden = true; },
     };
   };
 

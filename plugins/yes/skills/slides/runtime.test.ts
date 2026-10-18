@@ -48,9 +48,32 @@ const web = (pathname: string): Loc => ({ pathname, protocol: 'https:' });
 const deck = (slides: string, attrs = '') => `<main class="deck"${attrs}>${slides}</main>`;
 const plain = (n: number) => Array.from({ length: n }, (_, i) => `<section class="slide"><h2>S${i + 1}</h2></section>`).join('');
 
+// Each boot adds a deck whose listeners live on document and window; drop the previous ones so only
+// the deck under test reacts to keys and fullscreen changes.
+const listeners: [EventTarget, string, EventListenerOrEventListenerObject, unknown][] = [];
+for (const t of [document, window] as EventTarget[]) {
+  const add = t.addEventListener.bind(t);
+  t.addEventListener = (type: string, fn: EventListenerOrEventListenerObject, o?: unknown) => {
+    listeners.push([t, type, fn, o]);
+    add(type, fn, o as AddEventListenerOptions);
+  };
+}
 beforeEach(() => {
+  for (const [t, type, fn, o] of listeners.splice(0)) t.removeEventListener(type, fn, o as EventListenerOptions);
   document.documentElement.innerHTML = '<head></head><body></body>';
-  document.documentElement.removeAttribute('style');
+  for (const a of [...document.documentElement.attributes]) document.documentElement.removeAttribute(a.name);
+});
+
+describe('control icons', () => {
+  // each runtime stays self-contained, so the bars match only while the shared path data does
+  const icons = (src: string) => Object.fromEntries(
+    [...(/const ICONS = \{([\s\S]*?)\n\s*\};/.exec(src)?.[1] ?? '').matchAll(/(\w+): '([^']+)'/g)].map((m) => [m[1], m[2]]));
+  it('draws every icon both bars use from the same path data', () => {
+    const slides = icons(runtimeJs), video = icons(readFileSync(path.join(DIR, '../video/runtime.js'), 'utf8'));
+    const shared = Object.keys(slides).filter((k) => k in video);
+    expect(shared).toEqual(expect.arrayContaining(['play', 'pause', 'toc', 'help', 'maximize', 'restore']));
+    for (const k of shared) expect([k, video[k]]).toEqual([k, slides[k]]);
+  });
 });
 
 describe('template and example embed the runtime verbatim', () => {
@@ -268,6 +291,111 @@ describe('sound', () => {
     api.next(); api.next();
     expect(started.length).toBe(n);
     expect(api.sfx('xp')).toBe(true);
+  });
+});
+
+const key = (k: string, target: EventTarget = document.body) => target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+const maxOf = (el: Element) => el.getAttribute('data-ss-max') || 'off';
+const fsButton = (root: ParentNode = document) => root.querySelector<HTMLButtonElement>('.ss-bar .ss-fs')!;
+
+// A stand-in Fullscreen API: requestFullscreen makes the element the fullscreen one; exitFullscreen clears it.
+function fakeFullscreen() {
+  let el: Element | null = null;
+  const change = () => document.dispatchEvent(new Event('fullscreenchange'));
+  const proto = Element.prototype as unknown as Record<string, unknown>;
+  const doc = document as unknown as Record<string, unknown>;
+  Object.defineProperty(doc, 'fullscreenElement', { get: () => el, configurable: true });
+  Object.defineProperty(doc, 'fullscreenEnabled', { value: true, configurable: true });
+  doc.exitFullscreen = () => { el = null; change(); return Promise.resolve(); };
+  proto.requestFullscreen = function (this: Element) { el = this; change(); return Promise.resolve(); };
+  return {
+    browserExit() { el = null; change(); },
+    restore() { delete proto.requestFullscreen; delete doc.exitFullscreen; delete doc.fullscreenElement; delete doc.fullscreenEnabled; },
+  };
+}
+
+describe('maximize', () => {
+  it('without the Fullscreen API fills the window: F and the button toggle it, Esc leaves it', () => {
+    boot(deck(plain(2)));
+    const root = document.documentElement, b = fsButton();
+    expect(b.getAttribute('aria-label')).toBe('全画面');
+    key('f');
+    expect(maxOf(root)).toBe('pseudo');
+    expect(root.hasAttribute('data-ss-immersive')).toBe(true);
+    expect(b.getAttribute('aria-label')).toBe('全画面を終了');
+    expect(b.title).toBe('全画面を終了 (F)');
+    key('Escape');
+    expect(maxOf(root)).toBe('off');
+    expect(b.title).toBe('全画面 (F)');
+    b.click();
+    expect(maxOf(root)).toBe('pseudo');
+    b.click();
+    expect(maxOf(root)).toBe('off');
+  });
+
+  it('uses the Fullscreen API when there is one, and follows the browser leaving it', async () => {
+    const fs = fakeFullscreen();
+    try {
+      boot(deck(plain(2)));
+      const root = document.documentElement;
+      key('f');
+      await Promise.resolve();
+      expect(document.fullscreenElement).toBe(root);
+      expect(maxOf(root)).toBe('api');
+      fs.browserExit();
+      expect(maxOf(root)).toBe('off');
+      expect(fsButton().getAttribute('aria-label')).toBe('全画面');
+      key('f');
+      key('f');
+      expect(document.fullscreenElement).toBeNull();
+      expect(maxOf(root)).toBe('off');
+    } finally { fs.restore(); }
+  });
+
+  it('Esc first closes an open popover, and F does nothing while typing a slide number', () => {
+    boot(deck(plain(20)));
+    const root = document.documentElement;
+    key('f'); key('t');
+    key('Escape');
+    expect(document.querySelector<HTMLElement>('.ss-pop')!.hidden).toBe(true);
+    expect(maxOf(root)).toBe('pseudo');
+    key('Escape');
+    expect(maxOf(root)).toBe('off');
+    key('f', document.querySelector('.ss-jump input')!);
+    expect(maxOf(root)).toBe('off');
+  });
+});
+
+describe('a deck as a course unit', () => {
+  function unit() {
+    const root = document.createElement('div');
+    root.className = 'su-unit';
+    root.innerHTML = deck(plain(2));
+    document.body.appendChild(root);
+    new Function(runtimeJs)();
+    const ran: string[] = [];
+    const host = { saved: null, progress() {}, complete() {}, setRest() {}, position() {},
+      endActions: () => [{ label: 'next', primary: true, run: () => ran.push(maxOf(root)) }] };
+    const kinds = (window as unknown as { YESUnits: { kinds: Record<string, Function> } }).YESUnits.kinds;
+    const u = kinds.slides(root, {}, host) as { show(rest?: string): void; hide(): void };
+    return { root, u, ran };
+  }
+
+  it('maximizes its own unit, only while it is the one shown, and leaves before moving on', () => {
+    const { root, u, ran } = unit();
+    key('f');
+    expect(maxOf(root)).toBe('off');
+    u.show();
+    expect(fsButton(root).getAttribute('aria-label')).toBe('全画面');
+    key('f');
+    expect(maxOf(root)).toBe('pseudo');
+    expect(maxOf(document.documentElement)).toBe('off');
+    u.hide();
+    expect(maxOf(root)).toBe('off');
+    u.show('2');
+    fsButton(root).click();
+    root.querySelector<HTMLButtonElement>('.ss-unit-end button')!.click();
+    expect(ran).toEqual(['off']);
   });
 });
 

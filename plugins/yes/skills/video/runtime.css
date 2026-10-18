@@ -113,10 +113,17 @@
 @media (prefers-reduced-motion: reduce) { .ev-counting .ev-end-go::after { animation: none; transform: none; } }
 
 /* controls */
-.ev-controls { height: 56px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px calc(env(safe-area-inset-bottom, 0px)); font-size: 14px; }
-.ev-btn { border: 0; background: transparent; height: 40px; min-width: 40px; padding: 0 10px; border-radius: 8px; cursor: pointer; font-weight: 700; white-space: nowrap; }
+.ev-controls { position: relative; height: 56px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px calc(env(safe-area-inset-bottom, 0px)); font-size: 14px; }
+/* one button language with slides/runtime.css .ss-bar button */
+.ev-btn { appearance: none; border: 0; background: transparent; color: var(--ink); height: 36px; min-width: 36px; padding: 0 8px; border-radius: 8px;
+  cursor: pointer; font-weight: 700; white-space: nowrap; display: inline-grid; place-items: center; }
 .ev-btn:hover { background: var(--line); }
-.ev-btn[aria-pressed="false"] { opacity: .45; }
+.ev-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ev-btn:disabled { opacity: .35; cursor: default; background: transparent; }
+.ev-btn[aria-pressed="true"] { color: var(--accent); }
+.ev-btn svg { display: block; }
+.ev-speed { font-variant-numeric: tabular-nums; }
+.ev-video.narrow .ev-help { display: none; }
 .ev-time { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .ev-video.narrow .ev-time { display: none; }
 .ev-seek { flex: 1; height: 28px; position: relative; cursor: pointer; touch-action: none; min-width: 60px; }
@@ -125,9 +132,14 @@
 .ev-seek-tick { position: absolute; top: 7px; width: 2px; height: 14px; background: var(--muted); opacity: .6; }
 .ev-seek-knob { position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
 
-.ev-fs { display: inline-flex; align-items: center; justify-content: center; }
-.ev-fs-out, .ev-full .ev-fs-in { display: none; }
-.ev-full .ev-fs-out { display: inline; }
+/* key help: slides/runtime.css .ss-pop and .ss-keys */
+.ev-pop { position: absolute; right: 12px; bottom: calc(100% + 6px); z-index: 11; width: min(360px, calc(100vw - 24px)); max-height: min(70vh, 560px);
+  overflow: auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .18);
+  padding: 8px; font: 14px/1.45 var(--font); }
+.ev-pop[hidden] { display: none; }
+.ev-pop h4 { margin: 6px 8px 8px; font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+.ev-keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 8px 8px; }
+.ev-keys kbd { font: 12px/1 var(--mono); background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; white-space: nowrap; }
 
 /* maximized: the player itself in fullscreen (Fullscreen API), or without it the page's viewport. Stage, captions and
    controls only; the stage keeps 16:9 on the page background */
@@ -138,6 +150,12 @@
 .ev-video.ev-full .ev-controls { transition: opacity .3s ease; }
 .ev-video.ev-full.ev-idle .ev-controls { opacity: 0; }
 .ev-video.ev-full.ev-idle { cursor: none; }
+/* maximized landscape: the stage takes the whole screen and the bar floats over its bottom; while the bar shows,
+   the caption rises by the overlap (--ev-lift, stage px from fit()) */
+.ev-video.ev-float .ev-controls { position: absolute; left: 0; right: 0; bottom: 0;
+  background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.ev-video.ev-float .ev-stage > .ev-cap { transition: transform .3s ease; transform: translateY(calc(var(--ev-lift, 0px) * -1)); }
+.ev-video.ev-float.ev-idle .ev-stage > .ev-cap { transform: none; }
 /* a portrait phone keeps captions under the stage at readable size; the block sits mid-screen */
 .ev-video.ev-full.portrait > .ev-viewport { margin-top: auto; }
 .ev-video.ev-full.portrait .ev-cap-out { flex: none; min-height: 96px; }

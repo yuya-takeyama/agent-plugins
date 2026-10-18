@@ -263,12 +263,15 @@ countdown; the viewer can also choose 「とどまる」. Replay and other actio
 remain available. Portrait phones show this screen outside the scaled stage
 so its buttons remain readable. Space play/pause, ←/→ previous
 /next sentence, Shift+←/→ chapter, J/L ±5 s, C captions, T transcript,
-`<`/`>` speed 0.75–2×, F maximize. Click a transcript sentence to jump.
+`<`/`>` speed 0.75–2×, F maximize, ? key help (also a button, hidden on narrow
+players; Esc or a click outside closes it). Click a transcript sentence to jump.
 Maximize (the corner button at the end of the controls, or F; Esc or the
 button again leaves) puts the stage, captions and controls in fullscreen
 through the Fullscreen API, the stage at its largest 16:9 on the page
 background; the description is left out and the controls fade while playing
-until the pointer moves. Without element fullscreen (iPhone Safari) or when
+until the pointer moves. Outside a portrait phone the controls float over the
+stage's bottom edge, so the picture uses the whole screen, and the caption
+rises above them while they show. Without element fullscreen (iPhone Safari) or when
 the browser refuses, the player fills the page instead (`position: fixed`, in
 front of a course's outline and version switch). A host action from the end
 screen (next video, quiz) leaves it before moving on; the shot mode never
