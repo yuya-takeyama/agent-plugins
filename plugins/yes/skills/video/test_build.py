@@ -158,6 +158,26 @@ class ReadingTest(unittest.TestCase):
         self.assertEqual([w.split(":")[0] for w in warns], ["a"])  # c's reading already joined the list
 
 
+class ClaimsTest(unittest.TestCase):
+    LINES = [{"id": "c1-1.0", "text": "1907年に始まった。"}, {"id": "c1-1.1", "text": "数字はない。"},
+             {"id": "c1-1.2", "text": "つまり119年前だ。"}]
+
+    def test_ledger_shape(self):
+        script = {"sources": [{"title": "t", "url": "https://example.com"}], "claims": [
+            {"line": "c1-1.0", "source": 0, "quote": "inaugurated in 1907"},
+            {"line": "c1-1.2", "derived": "c1-1.0"},
+            {"line": "c9-9.9", "fiction": True},
+            {"line": "c1-1.1", "source": 3, "quote": "x"},
+            {"line": "c1-1.1", "quote": "x", "fiction": True}]}
+        errs = build.claim_errors(script, self.LINES)
+        self.assertEqual([e.split(":")[0] for e in errs], ["claims[2]", "claims[3]", "claims[4]"])
+
+    def test_undeclared_number_warns(self):
+        script = {"claims": [{"line": "c1-1.0", "source": 0, "quote": "1907"}]}
+        warns = build.claim_warnings(script, self.LINES)
+        self.assertEqual([w.split(":")[0] for w in warns], ["c1-1.2"])
+
+
 class QuizEchoTest(unittest.TestCase):
     def lines(self, before):
         return [{"id": "c1-1.0", "scene": "c1-1", "chapter": "c1", "text": before},
