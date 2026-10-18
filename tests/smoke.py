@@ -95,7 +95,38 @@ run('course','build',hosted,'--host-script',host)
 assert '@font-face' in (dialogue/'out/video.html').read_text(),'dialogue captions embed their font'
 
 class QuietHandler(SimpleHTTPRequestHandler):
+    """Serves byte ranges too: without them Chromium cannot seek the audio."""
     def log_message(self, *args): pass
+
+    def send_head(self):
+        self.range=None
+        path=self.translate_path(self.path)
+        spec=self.headers.get('Range','')
+        if not spec.startswith('bytes=') or ',' in spec or not os.path.isfile(path):
+            return super().send_head()
+        size=os.path.getsize(path)
+        start,_,end=spec[6:].partition('-')
+        try:
+            first,last=(int(start),min(int(end or size-1),size-1)) if start else (max(size-int(end),0),size-1)
+        except ValueError:
+            return super().send_head()
+        if first>last:
+            self.send_error(416); return None
+        f=open(path,'rb'); f.seek(first)
+        self.send_response(206)
+        self.send_header('Content-Type',self.guess_type(path))
+        self.send_header('Content-Range',f'bytes {first}-{last}/{size}')
+        self.send_header('Content-Length',str(last-first+1))
+        self.send_header('Accept-Ranges','bytes')
+        self.end_headers()
+        self.range=last-first+1
+        return f
+
+    def copyfile(self, source, outputfile):
+        if self.range is None: return super().copyfile(source,outputfile)
+        left=self.range
+        while left>0 and (chunk:=source.read(min(left,64*1024))):
+            outputfile.write(chunk); left-=len(chunk)
 
 server=ThreadingHTTPServer(('127.0.0.1',0),partial(QuietHandler,directory=str(work)))
 Thread(target=server.serve_forever,daemon=True).start()
@@ -177,8 +208,10 @@ html,body { margin:0; background:#faf9f6; }
                 page.locator('.ev-desc summary').click()
             if name=='course-bundle':
                 video_box=page.locator('[data-unit="l1-video"]')
-                video_box.locator('audio').evaluate('a => { a.currentTime=a.duration-.15; a.play(); }')
-                end=video_box.locator('.ev-end'); end.wait_for(state='visible')
+                audio=video_box.locator('audio')
+                assert audio.evaluate('a => a.seekable.length && a.seekable.end(0)')>0,'the server must let the audio seek'
+                audio.evaluate('a => { a.currentTime=a.duration-.15; a.play(); }')
+                end=video_box.locator('.ev-end'); end.wait_for(state='visible',timeout=5000)
                 assert end.locator('h1').inner_text()=='次は確認テスト'
                 assert 'ev-counting' in end.get_attribute('class')
                 page.screenshot(path=str(work/f'course-end-{width}.png'))
