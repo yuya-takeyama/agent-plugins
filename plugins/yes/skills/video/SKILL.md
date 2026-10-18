@@ -26,6 +26,14 @@ List primary references in `script.json` as `"sources": [{"title": "…",
 the expandable description, including inside a course. `lint` and `build`
 reject missing titles and URLs other than absolute HTTP(S) URLs.
 
+Tie every factual line to its source in `"claims"`: `{"line": "c1-2.0",
+"source": 0, "quote": "the source's own words"}`, or `{"line", "derived": "<line
+it restates or computes from>"}`, or `{"line", "fiction": true}` for a
+character's made-up detail. `lint` warns on a line with a number and no entry,
+but declare claims without numbers too (who did or said what). Before building,
+run `uv run <plugin>/scripts/check_claims.py <project-dir>`: fix every NOT FOUND,
+and tell the user which claims sit on unfetched sources so a person checks them.
+
 Run `uv run <this-skill-dir>/build.py build <project-dir>`.
 Add `--format bundle` for a sibling `<name>-bundle/index.html` and assets directory;
 otherwise the output is one HTML file. `--max-bytes N` optionally enforces a host limit.

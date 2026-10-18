@@ -269,6 +269,43 @@ def source_errors(sources: object) -> list[str]:
     return errs
 
 
+DIGIT = re.compile(r"[0-9０-９]")
+
+
+def claim_errors(script: dict, lines: list[dict]) -> list[str]:
+    """Malformed claims ledger entries: each names a line and exactly one of quote, derived, fiction."""
+    claims = script.get("claims", [])
+    if not isinstance(claims, list):
+        return ["claims: must be a list"]
+    ids, n_sources = {ln["id"] for ln in lines}, len(script.get("sources") or [])
+    errs = []
+    for i, claim in enumerate(claims):
+        if not isinstance(claim, dict) or claim.get("line") not in ids:
+            errs.append(f"claims[{i}]: line must be a narrated line id such as c1-1.0")
+            continue
+        kinds = [k for k in ("quote", "derived", "fiction") if k in claim]
+        if len(kinds) != 1:
+            errs.append(f"claims[{i}]: give exactly one of quote (with source), derived or fiction")
+        elif kinds == ["quote"]:
+            if not isinstance(claim["quote"], str) or not claim["quote"].strip():
+                errs.append(f"claims[{i}]: quote must be the source's own words")
+            source = claim.get("source")
+            if not isinstance(source, int) or isinstance(source, bool) or not 0 <= source < n_sources:
+                errs.append(f"claims[{i}]: source must be an index into sources")
+        elif kinds == ["derived"] and claim["derived"] not in ids:
+            errs.append(f"claims[{i}]: derived must name the line it restates or computes from")
+        elif kinds == ["fiction"] and claim["fiction"] is not True:
+            errs.append(f"claims[{i}]: fiction must be true")
+    return errs
+
+
+def claim_warnings(script: dict, lines: list[dict]) -> list[str]:
+    """A line with a number and no ledger entry is a factual claim nobody tied to a source."""
+    declared = {c.get("line") for c in script.get("claims", []) if isinstance(c, dict)}
+    return [f"{ln['id']}: has a number but no claims entry; quote its source, or mark it derived or fiction"
+            for ln in lines if DIGIT.search(ln["text"]) and ln["id"] not in declared]
+
+
 def cast_errors(lines: list[dict], cast: list[dict], styles: dict | None) -> list[str]:
     """Unknown who / face / style. `styles` None skips the style check (speaker list unavailable)."""
     by_id = {m["id"]: m for m in cast}
@@ -723,7 +760,7 @@ def resolve_voices(cast: list[dict], lines: list[dict]) -> list[dict]:
 def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
     """Synthesize, time and caption the video; write the unit bundle to `out` and return unit.json."""
     script, readings, cast, lines = load_project(root)
-    if errs := source_errors(script.get("sources", [])):
+    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines):
         die("\n".join(errs))
     credit = narration_credit(script) if not cast else None
     speakers = resolve_voices(cast, lines)
@@ -784,7 +821,7 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         "data": data,
     }
     (out / "unit.json").write_text(json.dumps(unit, ensure_ascii=False))
-    for w in lint(lines, readings, {ln["id"]: ln["end"] - ln["start"] for ln in timed}):
+    for w in lint(lines, readings, {ln["id"]: ln["end"] - ln["start"] for ln in timed}) + claim_warnings(script, lines):
         print(f"warn: {w}")
     print(f"{uid}: {duration / 60:.1f} min, {len(timed)} lines")
     return unit
@@ -824,13 +861,13 @@ def standalone_page(unit_dir: Path) -> str:
 
 def cmd_lint(root: Path) -> None:
     script, readings, cast, lines = load_project(root)
-    if errs := source_errors(script.get("sources", [])):
+    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines):
         die("\n".join(errs))
     if not cast:
         narration_credit(script)
     chars = sum(len(ln["text"]) for ln in lines)
     print(f"{len(lines)} lines, {chars} chars ≈ {chars / 300:.1f} min at 300 chars/min")
-    for w in lint(lines, readings):
+    for w in lint(lines, readings) + claim_warnings(script, lines):
         print(f"warn: {w}")
     if not cast:
         return
