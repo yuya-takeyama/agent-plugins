@@ -70,8 +70,10 @@ the content ("explains X" is not an objective).
 - Words sit next to, and play at the same time as, the picture part they
   describe.
 - Cut decoration and off-topic anecdotes. Keep humor off the line that
-  carries the point, and prefer jokes that act out the topic. A format's
-  sparse in-character beats are its default, not decoration to cut.
+  carries the point, and prefer jokes that act out the topic. Keep the
+  worked example and the mechanism itself serious; a humorous example lowered
+  retention and transfer in an experiment. A format's sparse in-character
+  beats are its default, not decoration to cut.
   An analogy states where it breaks.
 - Talk to the learner in a conversational register.
 - With narration over a dense diagram, show key terms on screen rather than

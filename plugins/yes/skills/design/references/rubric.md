@@ -23,7 +23,7 @@ not in front of you (for example audio you have not heard).
 | Q3 | Answerable | Every item is answerable from what was shown. |
 | Q4 | Spacing | In a multi-part course, later checks reuse earlier parts and mix confusable items. Skip for a single piece. |
 | P1 | One claim | Each slide, scene, or section carries one claim, and its heading or first line states it. |
-| P2 | Coherence | No decoration or off-topic story. Humor stays off the line that carries the point; a format's sparse in-character beats are allowed. |
+| P2 | Coherence | No decoration or off-topic story. Humor stays off the line that carries the point and out of the worked example; a format's sparse in-character beats are allowed. |
 | P3 | Contiguity | Text and labels sit next to the picture part they describe. Narration and the matching visual change together. |
 | P4 | Redundancy | Narration over a dense visual is not duplicated by the same full sentence on screen. Full captions can be switched off. |
 | P5 | Dialogue | In a dialogue, the learner character voices misconceptions and deep questions. No turn is filler agreement. |

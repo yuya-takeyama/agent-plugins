@@ -149,8 +149,11 @@ scenes, full captions available and switchable.
 - **On-screen characters.** A simple 2D agent gives a small benefit (g = 0.38
   for 2D, 0.11 for 3D) [48]. A friendly human voice is preferred; evidence
   for modern text-to-speech is mixed.
-- **Humor.** Humor tied to the content goes with learning; off-topic humor
-  acts like a seductive detail [49].
+- **Humor.** Learners feel humor improves learning, but measured gains are
+  slight. Humor tied to the content goes with learning; off-topic humor acts
+  like a seductive detail [49]. Replacing a lesson's examples with humorous
+  ones made the lesson feel funnier and lowered retention and transfer [50].
+  Its clearer benefit is attention and willingness to keep watching.
 
 ## 8. Sources
 
@@ -203,3 +206,4 @@ scenes, full captions available and switchable.
 47. Chi, M. T. H., Roy, M. & Hausmann, R. G. M. (2008). Observing tutorial dialogues collaboratively. https://eric.ed.gov/?id=EJ789293
 48. Castro-Alonso, J. C., Wong, R. M. & Adesope, O. O. (2021). Effectiveness of multimedia pedagogical agents predicted by diverse theories: a meta-analysis. https://eric.ed.gov/?id=EJ1310158
 49. Wanzer, M. B. et al. (2010). An explanation of the relationship between instructor humor and student learning: instructional humor processing theory. https://eric.ed.gov/?id=EJ875339
+50. Bolkan, S., Griffin, D. J. & Goodboy, A. K. (2018). Humor in the classroom: the effects of integrated humor on student learning. Communication Education 67(2). https://doi.org/10.1080/03634523.2017.1413199
