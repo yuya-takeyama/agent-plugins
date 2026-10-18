@@ -112,6 +112,9 @@ in the script.
     says plainly that it is wrong, and resolves it before the quiz.
   - `"goals"` are the brief's objectives as observable acts
     (〜を説明できる / 〜を選べる), not topics.
+  - `"assumes"` lists what the viewer must already know, from the brief's
+    Learner (`["SQL の SELECT を書いたことがある"]`). It appears under 前提
+    in the description; lint warns when it is missing.
   - Give every term of art one form, chosen by how Japanese engineers
     write it (method and seed glossary: `<PLUGIN>/references/terms-ja.md`),
     and use it in captions, board, quiz and goals alike:

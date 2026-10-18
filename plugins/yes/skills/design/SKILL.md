@@ -35,6 +35,8 @@ the content ("explains X" is not an objective).
 
 1. **Learner.** Who they are, what they already know, which terms they lack.
    A guess is fine; label it. Prior knowledge decides most choices below.
+   What they already know is shown to them before they start (a video's
+   `assumes`); the terms they lack are taught before they are used.
 2. **Objectives.** One to five things the learner can do afterwards per
    piece (per lesson in a course), each an observable act: explain why,
    choose between, predict what happens, find the bug in. Pick the few that

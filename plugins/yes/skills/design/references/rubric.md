@@ -10,8 +10,9 @@ not in front of you (for example audio you have not heard).
 | A2 | Alignment | Every objective has at least one check at its level, and every check maps to an objective. |
 | A3 | Substance | Checks and narration test the thing itself (mechanism, use, trade-off, pitfall), not which lesson covered it, dates, or counts. |
 | A4 | Limits | The topic's main limit or failure mode is taught and checked, not cut. |
-| L1 | Prior knowledge | The material names what it assumes. Terms the learner lacks are introduced before the mechanism that uses them. |
+| L1 | Assumptions | What the material assumes the learner knows is written where they see it before starting (a video's `assumes`, under 前提 in its description). |
 | L2 | Support level | Novice material leads with a worked example. Material for experienced learners drops step-by-step support they would have to read past. |
+| L3 | Terms first | Every term the learner lacks is explained before the line that relies on it. |
 | S1 | Concrete first | Each abstraction appears after a concrete case that grounds it. |
 | S2 | Misconceptions | Each listed misconception is stated and refuted, not only replaced by the right answer. |
 | S3 | Confusables | Confusable pairs are compared side by side, and the difference is stated. |
