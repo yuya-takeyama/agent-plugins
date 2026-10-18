@@ -21,6 +21,10 @@ slide a short `data-title` when its heading is long — it is what the TOC and
 the bar show. Give a slide an `id` when other decks or slides will link to
 it (`id="pricing"` → `#pricing`, stable across reordering). Put sources in
 `<p class="src">` (sticks to the bottom). No filler, no invented numbers.
+A thinking point is a question on one step whose answer is the next build
+step; put the brief's thinking points there, one per section of slides that
+makes one claim. The last content slide before `.slide.end` is a question the
+reader answers unaided, not a summary.
 
 **Layout kit** (use these, not pixel positioning, so phones reflow):
 `.kicker` `.lead` `.muted` `.small` `.mono` `.num` · `.cols-2` `.cols-3`

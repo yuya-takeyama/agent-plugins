@@ -15,6 +15,9 @@ features usable without network access or persistent storage. Do not upload,
 publish, or change visibility unless requested. Review the actual rendered
 output on desktop and mobile; report unavailable checks honestly.
 
+Before writing content, plan it with the sibling `design` skill: write
+`learning-brief.md`, or reuse the one a course has already written.
+
 Read [the authoring guide](references/authoring.md) for schemas and runtime behavior.
 
 Run `uv run <this-skill-dir>/build.py build <quiz.json>`.

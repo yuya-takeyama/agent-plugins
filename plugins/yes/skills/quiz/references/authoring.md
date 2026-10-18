@@ -28,14 +28,18 @@ uv run $S/build.py unit  quiz.json --id ai-quiz --out DIR   # unit bundle (cours
   background, trade-offs: 「こういう要件ならどれ？」「なぜこの設計だと〜？」
   「この変更で何に気をつける？」. Never test meta: which lesson or category
   covers something, how or when it was announced, dates, counts.
-- Answerable from the material it follows; nothing the learner was not shown.
+- Answerable from the material it follows or, in a course, earlier lessons;
+  nothing the learner was not shown.
 - Terms of art in the same form as the material (`<PLUGIN>/references/terms-ja.md`):
   katakana, Japanese, or English + gloss — never a fresh translation in a choice.
-- 4 choices, all plausible to someone who half-understood. Vary the answer
+- 4 choices, all plausible to someone who half-understood. Draw the wrong
+  ones from the learning brief's misconceptions and confusable pairs where
+  they fit; the rest come from a plausible half-understanding. Vary the answer
   position (lint warns when every answer sits in the same slot).
 - Every question has a `why`: one or two sentences on why the right answer
-  is right, ideally naming the misconception behind the tempting wrong one.
-- 3–4 questions after a 3–5 minute lesson; more only for a standalone drill.
+  is right and what the tempting wrong one misunderstands.
+- At least one question per objective, usually 3–4 after a 3–5 minute
+  lesson; more only for a standalone drill.
 
 ## Page behavior (runtime, do not re-implement)
 

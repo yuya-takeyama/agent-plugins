@@ -104,15 +104,18 @@ ignored. Without `YESHost` nothing changes.
 
 ## Orchestration
 
-1. **Split the topic.** From the sources, choose 4–8 lessons of 3–5 minutes,
+1. **Write the learning brief and split the topic.** Write `learning-brief.md`
+   with the `design` skill, then, from it and the sources, choose 4–8 lessons of 3–5 minutes,
    each owning a distinct part of the topic. Write the lesson list with one
    line of scope each, and decide which lesson owns any item two sources both
    mention. No "overview" lesson that previews the others — the home view
    already shows the course; an intro lesson only if it teaches something
-   none of the others do.
+   none of the others do. Then assign each objective, with its
+   misconceptions, sequence and checks, to the lesson that owns it, and
+   record the assignment in `learning-brief.md`.
 2. **Brief writers.** Copy `lesson-brief.md` and fill its slots: the
    learner, the sources, the course dir, each lesson's scope and the other
-   lessons' scopes, and a **term table** — each term of art with its one
+   lessons' scopes, each lesson's part of the learning brief, and a **term table** — each term of art with its one
    form (katakana, Japanese, or English + gloss; method in
    `<PLUGIN>/references/terms-ja.md`), checked against the vendor's Japanese
    docs and common usage, so several writers don't pick several renderings.
@@ -127,11 +130,14 @@ ignored. Without `YESHost` nothing changes.
      announcement framing and dates (`発表|Birthday|changelog|9月の|どのレッスン`).
      Send back anything found.
    - tests: each question asks about substance (要件→選択, なぜ, 気をつける点).
+   - learning design: grade each lesson against the `design` rubric
+     (alignment, thinking points, distractors, feedback, spacing).
    - unit choice: narrated video for a mechanism or a story that unfolds;
      slides for reference material the learner steps through at their own
      pace (tables, comparisons, code); quiz after each lesson.
    Iterate with the writers (or revise the lessons yourself) until clean.
-4. **Write course.json** from the writers' reports (summary, goals) and build.
+4. **Write course.json** from the writers' summaries and the brief's
+   objectives as goals, and build.
 5. **Verify**: `shoot` (home, each unit, desktop + mobile) and read the
    frames; `check` must pass; skim `out/transcript.md` for overlap once more.
 6. **Deliver** `out/course.html`, or its bundle, with verification results.

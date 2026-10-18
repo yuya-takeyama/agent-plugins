@@ -94,10 +94,20 @@ in the script.
     every space next to Japanese, so `有料の Workers` and the reading
     `ワーカーズ フォー プラットフォームズ` both run on.
   - Roughly 300 chars ≈ 1 minute. A chapter is 3–6 minutes and one claim.
-  - Chapter shape: hook (question / surprise / common misconception) →
-    concrete example → mechanism, built up step by step → name it → pitfall
-    → one-sentence summary → quiz.
-  - Open the video with a misconception and resolve it later.
+  - Chapter shape follows the learning brief's sequence for the chapter's
+    objective (worked example first, prediction first, refutation, or
+    contrast). When the brief leaves the choice open, use: hook (question / surprise /
+    common misconception) → concrete example → mechanism, built up step by
+    step → name it → pitfall → quiz. The quiz is the chapter's last word;
+    a summary before it turns recall into an echo (lint warns when the
+    answer repeats the lines just before the question).
+  - The quiz asks the viewer to apply the chapter to a new case, not to
+    repeat a line. Its narrated answer gives the reason and, in a few words,
+    what the tempting wrong answer misses.
+  - A chapter whose brief sequence is refutation opens on that misconception,
+    says plainly that it is wrong, and resolves it before the quiz.
+  - `"goals"` are the brief's objectives as observable acts
+    (〜を説明できる / 〜を選べる), not topics.
   - Give every term of art one form, chosen by how Japanese engineers
     write it (method and seed glossary: `<PLUGIN>/references/terms-ja.md`),
     and use it in captions, board, quiz and goals alike:

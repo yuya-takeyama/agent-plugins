@@ -15,16 +15,21 @@ features usable without network access or persistent storage. Do not upload,
 publish, or change visibility unless requested. Review the actual rendered
 output on desktop and mobile; report unavailable checks honestly.
 
-Establish what the reader already knows and what they should be able to explain
-or decide afterwards. Introduce the concrete problem before its terminology.
-Use a small worked example, then explain the mechanism and its trade-offs.
+Before writing content, plan it with the sibling `design` skill: write
+`learning-brief.md`, or reuse the one a course has already written.
+
+Follow the brief's learner, objectives and sequence. Where the brief leaves
+the order open, open on the concrete problem, name the parts the mechanism uses, then walk a small worked
+example through the mechanism and its trade-offs.
 Distinguish sourced facts from assumptions and include source links near claims.
 
 Create `explanation.html` with inline CSS and JavaScript. Use system fonts and
 inline SVG or embedded images; do not depend on a CDN. Use semantic sections,
 readable text, visible focus indicators, and controls with accessible labels.
 Add interaction only when changing a value or revealing a step aids understanding.
-Include a brief question or prediction when it checks the central concept.
+Give each section the brief's thinking point: a question or prediction the
+reader attempts before the answer is revealed. End with questions answered
+unaided, not a recap.
 
 For a user-stepped presentation use the sibling `slides` skill. For narration
 use `video`; for two-character narration use `zundamon-video`; for assessment

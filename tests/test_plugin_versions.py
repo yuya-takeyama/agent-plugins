@@ -28,7 +28,7 @@ class PluginVersionTests(unittest.TestCase):
     def add_plugin(self, name, version):
         for path in ('plugin.json', '.claude-plugin/plugin.json'):
             self.write_json(f'plugins/{name}/{path}', {'name': name, 'version': version})
-        for skill in ('explain', 'slides', 'quiz', 'video', 'zundamon-video', 'course'):
+        for skill in ('design', 'explain', 'slides', 'quiz', 'video', 'zundamon-video', 'course'):
             folder = self.root / f'plugins/{name}/skills/{skill}'
             folder.mkdir(parents=True)
             (folder / 'SKILL.md').write_text(f'---\nname: {skill}\ndescription: Test fixture.\n---\n')
