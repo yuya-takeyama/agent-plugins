@@ -26,6 +26,14 @@ List primary references in `script.json` as `"sources": [{"title": "…",
 the expandable description, including inside a course. `lint` and `build`
 reject missing titles and URLs other than absolute HTTP(S) URLs.
 
+Tie every factual line to its source in `"claims"`: `{"line": "c1-2.0",
+"source": 0, "quote": "the source's own words"}`, or `{"line", "derived": "<line
+it restates or computes from>"}`, or `{"line", "fiction": true}` for a
+character's made-up detail. `lint` warns on a line with a number and no entry,
+but declare claims without numbers too (who did or said what). Before building,
+run `uv run <plugin>/scripts/check_claims.py <project-dir>`: fix every NOT FOUND,
+and tell the user which claims sit on unfetched sources so a person checks them.
+
 Run `uv run <this-skill-dir>/build.py build <project-dir>`.
 Add `--format bundle` for a sibling `<name>-bundle/index.html` and assets directory;
 otherwise the output is one HTML file. `--max-bytes N` optionally enforces a host limit.
@@ -49,7 +57,10 @@ A command is treated as VOICEVOX unless `YES_TTS_ENGINE=other` declares a
 different engine; then set `"credit"` (and `usageTerms`) in script.json. Never
 declare VOICEVOX output as `other`.
 
-Run `lint`, then `build`, then `shoot`, and inspect every scene screenshot.
+After `lint` is clean, have the script reviewed by someone who did not write
+it, a fresh subagent when the host has them, against the sibling `design`
+skill's rubric. Apply every fix, cutting humor outside its places, and lint
+again. Then run `build`, then `shoot`, and inspect every scene screenshot.
 `check` drives the built page (maximize, fallback) and must print only `ok`.
 The screenshot command uses installed Chrome; `YES_BROWSER_CHANNEL=''` selects
 Playwright Chromium instead. Review pronunciation and the standalone transcript.

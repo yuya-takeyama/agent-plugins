@@ -199,6 +199,11 @@ function mountCast(stage, cast) {
   const credits = data.credits?.length ? data.credits : data.credit ? [data.credit] : [];
   const desc = el('details', 'ev-desc'), descSum = el('summary'), descBody = el('div', 'ev-desc-body');
   descSum.append(el('b', null, '概要'), el('span', 'ev-desc-line', credits.join(' ・ ')));
+  const assumes = (Array.isArray(data.assumes) ? data.assumes : []).filter((a) => typeof a === 'string' && a.trim());
+  if (assumes.length) {
+    const ul = el('ul', 'ev-desc-assumes'); for (const a of assumes) ul.append(el('li', null, a));
+    descBody.append(el('h3', null, '前提'), ul);
+  }
   if (data.description) descBody.append(el('p', 'ev-desc-text', data.description));
   const chList = el('ol', 'ev-desc-ch');
   for (const c of chapters) {

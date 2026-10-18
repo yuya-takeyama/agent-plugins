@@ -74,8 +74,12 @@ in the script.
 }
 ```
 
-- A line is a string or `{text, reading?, pause?}`. Default pauses: 0.35 s
-  between lines, 0.9 s after a scene, 1.4 s after a chapter.
+- A line is a string or `{text, reading?, pause?, aside?}`. Default pauses:
+  0.35 s between lines, 0.9 s after a scene, 1.4 s after a chapter.
+  `"aside": true` marks a line meant to amuse.
+- Every scene has a `"role"`: `hook`, `example`, `mechanism`, `transition`
+  or `close`. Lint warns on a scene without one and on an aside in an
+  `example` or `mechanism` scene or within three lines of a quiz.
 - Scene ids match `data-scene` in scenes.html. Quiz scenes
   (`<chapter>-quiz`) are generated; do not write sections for them.
 - Teach the substance: what the thing is and why it works that way, the
@@ -108,6 +112,9 @@ in the script.
     says plainly that it is wrong, and resolves it before the quiz.
   - `"goals"` are the brief's objectives as observable acts
     (〜を説明できる / 〜を選べる), not topics.
+  - `"assumes"` lists what the viewer must already know, from the brief's
+    Learner (`["SQL の SELECT を書いたことがある"]`). It appears under 前提
+    in the description; lint warns when it is missing.
   - Give every term of art one form, chosen by how Japanese engineers
     write it (method and seed glossary: `<PLUGIN>/references/terms-ja.md`),
     and use it in captions, board, quiz and goals alike:

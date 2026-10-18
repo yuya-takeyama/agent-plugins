@@ -57,7 +57,9 @@ The dialogue adds these rules:
    example, off the line and the board text that carry the key point, and
    out of the last scene before a quiz. A topical ズレ belongs on ずんだもん's
    misreading, which めたん then corrects; it never rides on the line that
-   states the correct idea. Cheap in-character gags:
+   states the correct idea. Mark every line meant to amuse `"aside": true`;
+   a joke that does not fit these places is cut, not moved. Cheap
+   in-character gags:
    めたん's 金欠 and 中二病, ずんだもん being ないがしろにされる.
 6. **Chapters** of 2–4 minutes. Each ends with the quiz, not a summary that
    gives its answer away. Quiz questions are usually めたん's (`q_who`); letting

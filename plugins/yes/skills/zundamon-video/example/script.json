@@ -11,6 +11,41 @@
     "zundamon"
   ],
   "speed": 1.1,
+  "sources": [
+    {
+      "title": "Rayleigh scattering (Wikipedia)",
+      "url": "https://en.wikipedia.org/wiki/Rayleigh_scattering",
+      "note": "散乱は波長の4乗に反比例"
+    },
+    {
+      "title": "Air mass (astronomy) (Wikipedia)",
+      "url": "https://en.wikipedia.org/wiki/Air_mass_(astronomy)",
+      "note": "地平線の空気の厚みは天頂のおよそ40倍"
+    }
+  ],
+  "claims": [
+    {
+      "line": "c1-3.0",
+      "source": 0,
+      "quote": "the amount of scattering is inversely proportional to the fourth power of the wavelength"
+    },
+    {
+      "line": "c1-3.1",
+      "derived": "c1-3.0"
+    },
+    {
+      "line": "c2-1.3",
+      "source": 1,
+      "quote": "the horizon air mass in the more realistic spherical atmosphere is usually less than 40"
+    },
+    {
+      "line": "c2-1.4",
+      "derived": "c2-1.3"
+    }
+  ],
+  "assumes": [
+    "光には色ごとに違う波の長さがある、と聞いたことがある程度でよい"
+  ],
   "chapters": [
     {
       "id": "c1",
@@ -18,6 +53,7 @@
       "scenes": [
         {
           "id": "c1-0",
+          "role": "hook",
           "lines": [
             {
               "who": "zundamon",
@@ -27,7 +63,8 @@
             {
               "who": "metan",
               "face": "jito",
-              "text": "夕方には真っ赤になるくせに、気まぐれな空ね。"
+              "text": "夕方には真っ赤になるくせに、気まぐれな空ね。",
+              "aside": true
             },
             {
               "who": "zundamon",
@@ -48,6 +85,7 @@
         },
         {
           "id": "c1-1",
+          "role": "mechanism",
           "lines": [
             {
               "who": "zundamon",
@@ -68,6 +106,7 @@
         },
         {
           "id": "c1-2",
+          "role": "mechanism",
           "lines": [
             {
               "who": "metan",
@@ -94,6 +133,7 @@
         },
         {
           "id": "c1-3",
+          "role": "mechanism",
           "lines": [
             {
               "who": "metan",
@@ -136,6 +176,7 @@
       "scenes": [
         {
           "id": "c2-1",
+          "role": "mechanism",
           "lines": [
             {
               "who": "zundamon",
@@ -175,6 +216,7 @@
         },
         {
           "id": "c2-2",
+          "role": "mechanism",
           "lines": [
             {
               "who": "zundamon",
@@ -194,12 +236,6 @@
               "who": "zundamon",
               "face": "smile",
               "text": "粒が小さいと青、大きいと白。粒の大きさで色が決まるのだ！"
-            },
-            {
-              "who": "metan",
-              "face": "smile",
-              "style": "ツンツン",
-              "text": "今日は、まとめだけはやけに上手ね。"
             }
           ]
         }

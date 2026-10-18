@@ -159,6 +159,7 @@ def flatten(script: dict, cast: list[str] | None = None) -> list[dict]:
                 entry = {
                     "id": f"{sc['id']}.{li}", "chapter": ch["id"], "scene": sc["id"],
                     "kind": sc.get("kind", "scene"), "idx": li,
+                    "role": sc.get("role"), "aside": bool(line.get("aside")),
                     "text": line["text"], "reading": line.get("reading"),
                     "pause": float(line.get("pause") if line.get("pause") is not None else default),
                 }
@@ -225,6 +226,32 @@ def lint(lines: list[dict], readings: dict, durations: dict | None = None) -> li
         if "who" in ln and len(caption_chunks(t)) > 2:
             warns.append(f"{ln['id']}: caption runs over 2 lines; split the sentence")
     warns += quiz_echo_warnings(lines)
+    warns += placement_warnings(lines)
+    return warns
+
+
+ROLES = ("hook", "example", "mechanism", "transition", "close")
+NO_ASIDE_BEFORE_QUIZ = 3
+
+
+def placement_warnings(lines: list[dict]) -> list[str]:
+    """Every scene names its role; humor (`aside`) stays out of examples, mechanisms and quiz lead-ins."""
+    warns, seen = [], set()
+    for i, ln in enumerate(lines):
+        scene = ln.get("scene")
+        if not scene or scene.endswith("-quiz"):
+            continue
+        if scene not in seen:
+            seen.add(scene)
+            if ln.get("role") not in ROLES:
+                warns.append(f"{scene}: role must be one of {', '.join(ROLES)}")
+        if not ln.get("aside"):
+            continue
+        if ln.get("role") in ("example", "mechanism"):
+            warns.append(f"{ln['id']}: humor in a {ln['role']} scene; cut it")
+        ahead = lines[i + 1:i + 1 + NO_ASIDE_BEFORE_QUIZ]
+        if any(x.get("scene", "").endswith("-quiz") for x in ahead):
+            warns.append(f"{ln['id']}: humor right before a quiz; cut it")
     return warns
 
 
@@ -267,6 +294,55 @@ def source_errors(sources: object) -> list[str]:
         if "note" in source and not isinstance(source["note"], str):
             errs.append(f"sources[{i}]: note must be a string")
     return errs
+
+
+DIGIT = re.compile(r"[0-9０-９]")
+
+
+def claim_errors(script: dict, lines: list[dict]) -> list[str]:
+    """Malformed claims ledger entries: each names a line and exactly one of quote, derived, fiction."""
+    claims = script.get("claims", [])
+    if not isinstance(claims, list):
+        return ["claims: must be a list"]
+    ids, n_sources = {ln["id"] for ln in lines}, len(script.get("sources") or [])
+    errs = []
+    for i, claim in enumerate(claims):
+        if not isinstance(claim, dict) or claim.get("line") not in ids:
+            errs.append(f"claims[{i}]: line must be a narrated line id such as c1-1.0")
+            continue
+        kinds = [k for k in ("quote", "derived", "fiction") if k in claim]
+        if len(kinds) != 1:
+            errs.append(f"claims[{i}]: give exactly one of quote (with source), derived or fiction")
+        elif kinds == ["quote"]:
+            if not isinstance(claim["quote"], str) or not claim["quote"].strip():
+                errs.append(f"claims[{i}]: quote must be the source's own words")
+            source = claim.get("source")
+            if not isinstance(source, int) or isinstance(source, bool) or not 0 <= source < n_sources:
+                errs.append(f"claims[{i}]: source must be an index into sources")
+        elif kinds == ["derived"] and claim["derived"] not in ids:
+            errs.append(f"claims[{i}]: derived must name the line it restates or computes from")
+        elif kinds == ["fiction"] and claim["fiction"] is not True:
+            errs.append(f"claims[{i}]: fiction must be true")
+    return errs
+
+
+def assumes_errors(script: dict) -> list[str]:
+    assumes = script.get("assumes", [])
+    if not isinstance(assumes, list) or not all(isinstance(a, str) and a.strip() for a in assumes):
+        return ["assumes: must be a list of nonempty strings"]
+    return []
+
+
+def assumes_warnings(script: dict) -> list[str]:
+    return [] if script.get("assumes") else [
+        'assumes: list what the viewer must already know (the brief\'s Learner), shown under 前提 in the description']
+
+
+def claim_warnings(script: dict, lines: list[dict]) -> list[str]:
+    """A line with a number and no ledger entry is a factual claim nobody tied to a source."""
+    declared = {c.get("line") for c in script.get("claims", []) if isinstance(c, dict)}
+    return [f"{ln['id']}: has a number but no claims entry; quote its source, or mark it derived or fiction"
+            for ln in lines if DIGIT.search(ln["text"]) and ln["id"] not in declared]
 
 
 def cast_errors(lines: list[dict], cast: list[dict], styles: dict | None) -> list[str]:
@@ -723,7 +799,7 @@ def resolve_voices(cast: list[dict], lines: list[dict]) -> list[dict]:
 def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
     """Synthesize, time and caption the video; write the unit bundle to `out` and return unit.json."""
     script, readings, cast, lines = load_project(root)
-    if errs := source_errors(script.get("sources", [])):
+    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines) + assumes_errors(script):
         die("\n".join(errs))
     credit = narration_credit(script) if not cast else None
     speakers = resolve_voices(cast, lines)
@@ -765,7 +841,8 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         f'<div class="su-unit" data-unit="{html.escape(uid)}" data-kind="video"{cap_attr} hidden>\n{font_css}{scenes_html}\n{quizzes}\n</div>\n')
     for f in ("runtime.js", "runtime.css"):
         shutil.copy(SKILL_DIR / f, out / f)
-    data = {"title": script.get("title", ""), "kicker": script.get("subtitle", ""), "goals": script.get("goals", [])}
+    data = {"title": script.get("title", ""), "kicker": script.get("subtitle", ""), "goals": script.get("goals", []),
+            "assumes": script.get("assumes", [])}
     if cast:
         data.update(cast=cast_data(cast, timed), credits=credits_for(timed, cast, speakers),
                     description=script.get("description", ""))
@@ -784,7 +861,7 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         "data": data,
     }
     (out / "unit.json").write_text(json.dumps(unit, ensure_ascii=False))
-    for w in lint(lines, readings, {ln["id"]: ln["end"] - ln["start"] for ln in timed}):
+    for w in lint(lines, readings, {ln["id"]: ln["end"] - ln["start"] for ln in timed}) + claim_warnings(script, lines):
         print(f"warn: {w}")
     print(f"{uid}: {duration / 60:.1f} min, {len(timed)} lines")
     return unit
@@ -824,13 +901,13 @@ def standalone_page(unit_dir: Path) -> str:
 
 def cmd_lint(root: Path) -> None:
     script, readings, cast, lines = load_project(root)
-    if errs := source_errors(script.get("sources", [])):
+    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines) + assumes_errors(script):
         die("\n".join(errs))
     if not cast:
         narration_credit(script)
     chars = sum(len(ln["text"]) for ln in lines)
     print(f"{len(lines)} lines, {chars} chars ≈ {chars / 300:.1f} min at 300 chars/min")
-    for w in lint(lines, readings):
+    for w in lint(lines, readings) + claim_warnings(script, lines) + assumes_warnings(script):
         print(f"warn: {w}")
     if not cast:
         return

@@ -255,6 +255,14 @@ describe('video unit with a cast', () => {
     expect(root.querySelector('.ev-tr')!.textContent).not.toContain('VOICEVOX');
   });
 
+  it('lists what the video assumes under 前提, before the description', () => {
+    ({ root } = mount({ cast: [art('metan'), art('zundamon')], description: '説明文',
+      assumes: ['SQL の SELECT を書いたことがある', '', 3] }, lines));
+    const body = root.querySelector('.ev-desc-body')!;
+    expect([...body.querySelectorAll('.ev-desc-assumes li')].map((l) => l.textContent)).toEqual(['SQL の SELECT を書いたことがある']);
+    expect(body.firstElementChild!.textContent).toBe('前提');
+  });
+
   it('links sources in the 概要欄 and drops non-http urls', () => {
     ({ root } = mount({ cast: [art('metan'), art('zundamon')], sources: [
       { title: '原典', url: 'https://example.com/a', note: '一次情報' },
