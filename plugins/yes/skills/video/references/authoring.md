@@ -256,7 +256,8 @@ countdown; the viewer can also choose 「とどまる」. Replay and other actio
 remain available. Portrait phones show this screen outside the scaled stage
 so its buttons remain readable. Space play/pause, ←/→ previous
 /next sentence, Shift+←/→ chapter, J/L ±5 s, C captions, T transcript,
-`<`/`>` speed 0.75–2×, F maximize. Click a transcript sentence to jump.
+`<`/`>` speed 0.75–2×, F maximize, ? key help (also a button, hidden on narrow
+players; Esc or a click outside closes it). Click a transcript sentence to jump.
 Maximize (the corner button at the end of the controls, or F; Esc or the
 button again leaves) puts the stage, captions and controls in fullscreen
 through the Fullscreen API, the stage at its largest 16:9 on the page

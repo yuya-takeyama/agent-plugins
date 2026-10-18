@@ -388,6 +388,40 @@ describe('positions shared by versions of one video', () => {
 
 const key = (k: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
 const fsBtn = (root: Element) => root.querySelector('.ev-controls .ev-fs') as HTMLButtonElement;
+const helpPop = (root: Element) => root.querySelector('.ev-pop') as HTMLElement;
+const helpBtn = (root: Element) => root.querySelector('.ev-controls [aria-label="キー操作 (?)"]') as HTMLButtonElement;
+const press = (target: Element) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+describe('key help', () => {
+  it('opens on ? and lists every key the player answers to', () => {
+    const { root, unit } = twoChapters(0);
+    unit.show('');
+    expect(helpPop(root).hidden).toBe(true);
+    key('?');
+    expect(helpPop(root).hidden).toBe(false);
+    expect([...helpPop(root).querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(
+      ['Space / K', '← / →', 'Shift + ← / →', 'J / L', 'C', 'T', '< / >', 'F', 'Esc', '?']);
+    key('?');
+    expect(helpPop(root).hidden).toBe(true);
+  });
+
+  it('toggles from its button and closes on Esc or a press outside it', () => {
+    const { root, unit } = twoChapters(0);
+    unit.show('');
+    helpBtn(root).click();
+    expect(helpPop(root).hidden).toBe(false);
+    press(helpPop(root));
+    expect(helpPop(root).hidden).toBe(false);
+    press(root.querySelector('.ev-stage')!);
+    expect(helpPop(root).hidden).toBe(true);
+    helpBtn(root).click();
+    key('Escape');
+    expect(helpPop(root).hidden).toBe(true);
+    helpBtn(root).click();
+    helpBtn(root).click();
+    expect(helpPop(root).hidden).toBe(true);
+  });
+});
 
 describe('maximize', () => {
   const restore: (() => void)[] = [];
@@ -442,6 +476,21 @@ describe('maximize', () => {
     key('f');
     await new Promise((r) => setTimeout(r, 0));
     expect(root.classList.contains('ev-pseudo')).toBe(true);
+  });
+
+  it('closes the key help on Esc before it leaves the maximized player', () => {
+    stub(Element.prototype, 'requestFullscreen', undefined);
+    stub(Element.prototype, 'webkitRequestFullscreen', undefined);
+    const { root, unit } = twoChapters(0);
+    unit.show('');
+    key('f');
+    key('?');
+    expect(helpPop(root).hidden).toBe(false);
+    key('Escape');
+    expect(helpPop(root).hidden).toBe(true);
+    expect(root.classList.contains('ev-full')).toBe(true);
+    key('Escape');
+    expect(root.classList.contains('ev-full')).toBe(false);
   });
 
   it('stays off in the screenshot mode', () => {

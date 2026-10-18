@@ -64,6 +64,18 @@ beforeEach(() => {
   for (const a of [...document.documentElement.attributes]) document.documentElement.removeAttribute(a.name);
 });
 
+describe('control icons', () => {
+  // each runtime stays self-contained, so the bars match only while the shared path data does
+  const icons = (src: string) => Object.fromEntries(
+    [...(/const ICONS = \{([\s\S]*?)\n\s*\};/.exec(src)?.[1] ?? '').matchAll(/(\w+): '([^']+)'/g)].map((m) => [m[1], m[2]]));
+  it('draws every icon both bars use from the same path data', () => {
+    const slides = icons(runtimeJs), video = icons(readFileSync(path.join(DIR, '../video/runtime.js'), 'utf8'));
+    const shared = Object.keys(slides).filter((k) => k in video);
+    expect(shared).toEqual(expect.arrayContaining(['play', 'toc', 'help', 'maximize', 'restore']));
+    for (const k of shared) expect([k, video[k]]).toEqual([k, slides[k]]);
+  });
+});
+
 describe('template and example embed the runtime verbatim', () => {
   it.each(['template.html', 'example.html'])('%s', (name) => {
     const html = read(name);

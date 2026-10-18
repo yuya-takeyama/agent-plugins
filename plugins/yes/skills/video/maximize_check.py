@@ -112,6 +112,35 @@ def check_maximize(browser, url: str, sel: str, expect, frames: Path, label: str
     page.screenshot(path=str(frames / f"_full-16x9-idle{('-' + label) if label else ''}.png"))
     ctx.close()
 
+    # the key help works maximized: it shows on top inside the fullscreen player, holds the controls up while
+    # playing, and Esc closes it before it leaves fullscreen
+    ctx, page = open_page("desktop")
+    page.keyboard.press("f")
+    page.wait_for_timeout(500)
+    page.keyboard.press("?")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(3300)
+    h = page.evaluate(
+        """(sel) => { const r = document.querySelector(sel), pop = r.querySelector('.ev-pop'), b = pop.getBoundingClientRect();
+          const hit = b.width ? document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) : null;
+          return { open: !pop.hidden && b.width > 0, top: !!hit && pop.contains(hit), keys: pop.querySelectorAll('kbd').length,
+                   playing: !r.querySelector('audio').paused }; }""",
+        sel,
+    )
+    s = state(page, sel)
+    expect(s["api"] and h["open"] and h["top"] and h["keys"] >= 10, f"{tag}? opens the key help over the maximized player {h}")
+    expect(h["playing"] and s["barOpacity"] == 1, f"{tag}while the help is open the controls stay up during playback {s}")
+    page.screenshot(path=str(frames / f"_full-help{('-' + label) if label else ''}.png"))
+    page.keyboard.press("Space")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    s = state(page, sel)
+    expect(s["full"] and page.locator(f"{sel} .ev-pop").is_hidden(), f"{tag}Esc closes the help first and stays maximized {s}")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(400)
+    expect(not state(page, sel)["full"], f"{tag}a second Esc leaves fullscreen")
+    ctx.close()
+
     # phones: the same, looked at upright and sideways
     for view in ("phone-portrait", "phone-landscape"):
         ctx, page = open_page(view)

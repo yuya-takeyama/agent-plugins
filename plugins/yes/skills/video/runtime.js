@@ -19,6 +19,19 @@ window.EV = window.EV || { hooks: {}, on(id, fn) { this.hooks[id] = fn; } };
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+// control icons: path data shared byte for byte with slides/runtime.js (slides/runtime.test.ts compares them)
+const ICONS = {
+  play: 'M7 4.8v14.4L19 12z',
+  pause: 'M8 5v14M16 5v14',
+  toc: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  captions: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM10.5 10.2a2 2 0 1 0 0 3.6M16.5 10.2a2 2 0 1 0 0 3.6',
+  captionsOff: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM10.5 10.2a2 2 0 1 0 0 3.6M16.5 10.2a2 2 0 1 0 0 3.6M4 4l16 16',
+  help: 'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.5v.4M12 17h.01',
+  maximize: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+  restore: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5',
+};
+const setIcon = (b, name) => { b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + `<path d="${ICONS[name]}"/></svg>`; };
 const lastStartAtOrBefore = (arr, x) => { let lo = 0, hi = arr.length - 1, ans = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (arr[m].start <= x) { ans = m; lo = m + 1; } else hi = m - 1; } return ans; };
 
@@ -156,17 +169,22 @@ function mountCast(stage, cast) {
   stage.append(start, end); viewport.append(stage);
   const capOut = el('div', 'ev-cap-out');
   const controls = el('div', 'ev-controls');
-  const btn = (label, aria) => { const b = el('button', 'ev-btn', label); b.setAttribute('aria-label', aria); return b; };
-  const playBtn = btn('▶', '再生/一時停止 (Space)'), time = el('span', 'ev-time', '0:00 / 0:00');
+  const btn = (icon, aria) => { const b = el('button', 'ev-btn'); b.setAttribute('aria-label', aria); b.title = aria; if (icon) setIcon(b, icon); return b; };
+  const playBtn = btn('play', '再生/一時停止 (Space)'), time = el('span', 'ev-time', '0:00 / 0:00');
   const seekBar = el('div', 'ev-seek'), fill = el('div', 'ev-seek-fill'), knob = el('div', 'ev-seek-knob');
   seekBar.append(el('div', 'ev-seek-track'), fill, knob);
   chapters.forEach((c, i) => { if (!i) return; const t = el('div', 'ev-seek-tick'); t.style.left = `${(c.start / TL.duration) * 100}%`; seekBar.append(t); });
-  const ccBtn = btn('字幕', '字幕 (C)'), speedBtn = btn('1×', '再生速度'), trBtn = btn('文字', '文字起こし (T)');
-  // maximize: the expand corners while normal, the collapse corners while maximized (runtime.css swaps them)
-  const fsBtn = btn('', '全画面'); fsBtn.classList.add('ev-fs'); fsBtn.title = '全画面 (F)';
-  fsBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<path class="ev-fs-in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="ev-fs-out" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>';
-  controls.append(playBtn, time, seekBar, ccBtn, speedBtn, trBtn, fsBtn);
+  const ccBtn = btn('captions', '字幕 (C)'), speedBtn = btn('', '再生速度 (< >)'), trBtn = btn('toc', '文字起こし (T)');
+  speedBtn.classList.add('ev-speed');
+  const helpBtn = btn('help', 'キー操作 (?)'); helpBtn.classList.add('ev-help');
+  const fsBtn = btn('maximize', '全画面 (F)'); fsBtn.classList.add('ev-fs'); fsBtn.setAttribute('aria-label', '全画面');
+  // the key help hangs above the bar inside the player, so it shows in fullscreen too
+  const help = el('div', 'ev-pop'); help.hidden = true; help.setAttribute('role', 'dialog');
+  const keys = el('div', 'ev-keys');
+  for (const [k, v] of [['Space / K', '再生 / 一時停止'], ['← / →', '前 / 次の文'], ['Shift + ← / →', '前 / 次のチャプター'], ['J / L', '5 秒戻る / 進む'],
+    ['C', '字幕 オン / オフ'], ['T', '文字起こし'], ['< / >', '再生速度'], ['F', '全画面 / 終了'], ['Esc', '閉じる / 全画面を終了'], ['?', 'キー操作']]) keys.append(el('kbd', null, k), el('span', null, v));
+  help.append(el('h4', null, 'キー操作'), keys);
+  controls.append(playBtn, time, seekBar, ccBtn, speedBtn, trBtn, helpBtn, fsBtn, help);
   const tr = el('aside', 'ev-tr'), trButtons = [];
   chapters.forEach((c, i) => {
     tr.append(el('h2', null, `${i + 1}. ${c.title}`));
@@ -311,9 +329,9 @@ function mountCast(stage, cast) {
   }
   function toggle() { if (audio.paused) play(); else audio.pause(); }
   function seek(x) { x = Math.max(0, Math.min(TL.duration, x)); try { audio.currentTime = x; } catch {} lastCT = null; render(x); }
-  audio.addEventListener('play', () => { playBtn.textContent = '❚❚'; });
+  audio.addEventListener('play', () => { setIcon(playBtn, 'pause'); });
   audio.addEventListener('pause', () => {
-    playBtn.textContent = '▶'; wake();
+    setIcon(playBtn, 'play'); wake();
     if (started) { const r = `t=${t.toFixed(1)}`; if (active) host.setRest(r); host.position(r); }
   });
   audio.addEventListener('ended', () => {
@@ -356,7 +374,7 @@ function mountCast(stage, cast) {
   seekBar.addEventListener('pointermove', (e) => { if (dragging) seekFromEvent(e); });
   seekBar.addEventListener('pointerup', () => { dragging = false; });
 
-  const setCC = (on) => { root.classList.toggle('nocap', !on); ccBtn.setAttribute('aria-pressed', String(on)); host.prefs.set('cc', on); };
+  const setCC = (on) => { root.classList.toggle('nocap', !on); ccBtn.setAttribute('aria-pressed', String(on)); setIcon(ccBtn, on ? 'captions' : 'captionsOff'); host.prefs.set('cc', on); };
   setCC(host.prefs.get('cc') !== false);
   ccBtn.addEventListener('click', () => setCC(root.classList.contains('nocap')));
   const setSpeed = (i) => { speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, i)); audio.playbackRate = SPEEDS[speedIdx]; speedBtn.textContent = `${SPEEDS[speedIdx]}×`; host.prefs.set('speed', SPEEDS[speedIdx]); };
@@ -366,14 +384,17 @@ function mountCast(stage, cast) {
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
   const isFull = () => root.classList.contains('ev-full');
   let idleTimer = null, swallowTap = false;
-  // maximized and playing, the controls fade after a still moment; a move, tap or key brings them back
+  // maximized and playing, the controls fade after a still moment unless the key help is open; a move, tap or key brings them back
   function wake() {
     root.classList.remove('ev-idle'); clearTimeout(idleTimer);
-    if (isFull()) idleTimer = setTimeout(() => { if (isFull() && !audio.paused) root.classList.add('ev-idle'); }, 2500);
+    if (isFull()) idleTimer = setTimeout(() => { if (isFull() && !audio.paused && help.hidden) root.classList.add('ev-idle'); }, 2500);
   }
+  const setHelp = (open) => { help.hidden = !open; wake(); };
+  helpBtn.addEventListener('click', () => setHelp(help.hidden));
+  document.addEventListener('pointerdown', (e) => { if (!help.hidden && !help.contains(e.target) && !helpBtn.contains(e.target)) setHelp(false); });
   function setFull(on, pseudo) {
     root.classList.toggle('ev-full', on); root.classList.toggle('ev-pseudo', on && pseudo);
-    fsBtn.setAttribute('aria-label', on ? '全画面を終了' : '全画面'); fsBtn.title = on ? '全画面を終了 (F)' : '全画面 (F)';
+    fsBtn.setAttribute('aria-label', on ? '全画面を終了' : '全画面'); fsBtn.title = on ? '全画面を終了 (F)' : '全画面 (F)'; setIcon(fsBtn, on ? 'restore' : 'maximize');
     wake(); fit();
   }
   function enterFull() {
@@ -410,7 +431,8 @@ function mountCast(stage, cast) {
     if (!active || e.metaKey || e.ctrlKey || e.altKey) return;
     if (isFull()) wake();
     const k = e.key;
-    if (k === 'Escape') { if (isFull()) { e.preventDefault(); exitFull(); } }
+    if (k === 'Escape') { if (!help.hidden) { e.preventDefault(); setHelp(false); } else if (isFull()) { e.preventDefault(); exitFull(); } }
+    else if (k === '?') setHelp(help.hidden);
     else if (k === 'f' || k === 'F') { e.preventDefault(); toggleFull(); }
     else if (k === ' ' || k === 'k') { e.preventDefault(); playOrToggle(); }
     else if (k === 'ArrowRight') { e.preventDefault(); if (e.shiftKey) chapterStep(1); else lineStep(1); }
@@ -492,7 +514,7 @@ function mountCast(stage, cast) {
       start.hidden = !!ch || started; end.hidden = true;
       seek(ch ? ch.start + 0.01 : started ? t : 0);
     },
-    hide() { exitFull(); active = false; cancelAuto(); audio.pause(); tr.classList.remove('open'); root.hidden = true; },
+    hide() { setHelp(false); exitFull(); active = false; cancelAuto(); audio.pause(); tr.classList.remove('open'); root.hidden = true; },
   };
 };
 }

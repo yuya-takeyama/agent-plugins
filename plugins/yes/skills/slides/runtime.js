@@ -95,6 +95,22 @@
     try { SFX[name](n); return true; } catch { return false; }
   }
 
+  // control icons: path data shared byte for byte with video/runtime.js (runtime.test.ts compares them)
+  const ICONS = {
+    play: 'M7 4.8v14.4L19 12z',
+    prev: 'M15 5l-7 7 7 7',
+    next: 'M9 5l7 7-7 7',
+    replay: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9M4.5 4.5V9H9',
+    toc: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+    sound: 'M4 9h3l5-4v14l-5-4H4zM16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11',
+    soundOff: 'M4 9h3l5-4v14l-5-4H4zM16 9.5l5 5M21 9.5l-5 5',
+    help: 'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.5v.4M12 17h.01',
+    maximize: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+    restore: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5',
+  };
+  const setIcon = (b, name) => { b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + `<path d="${ICONS[name]}"/></svg>`; };
+
   function mk(tag, attrs, text) {
     const e = document.createElement(tag);
     for (const k in attrs || {}) e.setAttribute(k, attrs[k]);
@@ -156,7 +172,7 @@
     let slides = [], bar, els = {}, sceneRuns = new Map(), stepTimers = [], idleTimer = null;
     function setSound(on) {
       snd.on = !!on && !!audio();
-      if (els.sound) { els.sound.textContent = snd.on ? '🔊' : '🔇'; els.sound.setAttribute('aria-pressed', String(snd.on)); }
+      if (els.sound) { setIcon(els.sound, snd.on ? 'sound' : 'soundOff'); els.sound.setAttribute('aria-pressed', String(snd.on)); }
       if (snd.on) sfx('pop');
     }
 
@@ -313,7 +329,7 @@
     function setMax(m) {
       if (m === 'off') frame.removeAttribute('data-ss-max'); else frame.setAttribute('data-ss-max', m);
       const label = m === 'off' ? '全画面' : '全画面を終了';
-      els.full.setAttribute('aria-label', label); els.full.title = label + ' (F)';
+      els.full.setAttribute('aria-label', label); els.full.title = label + ' (F)'; setIcon(els.full, m === 'off' ? 'maximize' : 'restore');
       layout();
     }
     function enterMax() {
@@ -335,16 +351,17 @@
     const onFsChange = () => setMax(fsEl() === frame ? 'api' : maxed() === 'api' ? 'off' : maxed());
 
     /* ---------- chrome ---------- */
-    function btn(label, aria, onClick) {
-      const b = mk('button', { type: 'button', 'aria-label': aria, title: aria }, label);
+    function btn(icon, aria, onClick) {
+      const b = mk('button', { type: 'button', 'aria-label': aria, title: aria });
+      if (icon) setIcon(b, icon);
       b.addEventListener('click', e => { e.stopPropagation(); onClick(); b.blur(); });
       return b;
     }
     function buildChrome() {
       bar = mk('nav', { class: 'ss-bar', 'aria-label': 'スライド操作' });
       els.prog = mk('div', { class: 'ss-prog' });
-      els.prev = btn('←', '前へ (←)', () => { stopPlay(); prev(); });
-      els.next = btn('→', '次へ (→ / Space)', () => { stopPlay(); next(); });
+      els.prev = btn('prev', '前へ (←)', () => { stopPlay(); prev(); });
+      els.next = btn('next', '次へ (→ / Space)', () => { stopPlay(); next(); });
       els.mid = mk('div', { class: 'ss-mid' });
       if (S.n <= DOTS_MAX) {
         els.dots = mk('div', { class: 'ss-dots', role: 'group', 'aria-label': 'スライド' });
@@ -370,21 +387,18 @@
       els.title = mk('span', { class: 'ss-title' });
       els.mid.append(els.pips);
       els.tools = mk('div', { class: 'ss-tools' });
-      els.play = btn('▶', '自動再生 (P)', togglePlay);
-      els.replay = btn('↺', 'アニメーションを最初から (R)', replay);
-      els.toc = btn('☰', '目次 (T)', () => togglePop('toc'));
-      els.help = btn('?', 'キー操作 (?)', () => togglePop('help'));
+      els.play = btn('play', '自動再生 (P)', togglePlay);
+      els.replay = btn('replay', 'アニメーションを最初から (R)', replay);
+      els.toc = btn('toc', '目次 (T)', () => togglePop('toc'));
+      els.help = btn('help', 'キー操作 (?)', () => togglePop('help'));
       els.tools.append(els.play, els.replay, els.toc);
       if (deck.hasAttribute('data-sound')) {
-        els.sound = btn('🔇', '効果音 (S)', () => setSound(!snd.on));
+        els.sound = btn('soundOff', '効果音 (S)', () => setSound(!snd.on));
         els.sound.setAttribute('aria-pressed', 'false');
         els.tools.append(els.sound);
       }
-      // the expand corners while normal, the collapse corners while maximized (runtime.css swaps them);
       // it stays on narrow screens, where a tap is the only way in
-      els.full = btn('', '全画面', toggleMax); els.full.title = '全画面 (F)'; els.full.classList.add('ss-fs');
-      els.full.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-        + '<path class="ss-fs-in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="ss-fs-out" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>';
+      els.full = btn('maximize', '全画面', toggleMax); els.full.title = '全画面 (F)'; els.full.classList.add('ss-fs');
       els.help.classList.add('ss-opt');
       els.tools.append(els.full, els.help);
       const center = mk('div', { class: 'ss-center' });
