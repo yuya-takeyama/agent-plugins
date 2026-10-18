@@ -138,6 +138,12 @@
 .ev-video.ev-full .ev-controls { transition: opacity .3s ease; }
 .ev-video.ev-full.ev-idle .ev-controls { opacity: 0; }
 .ev-video.ev-full.ev-idle { cursor: none; }
+/* maximized landscape: the stage takes the whole screen and the bar floats over its bottom; while the bar shows,
+   the caption rises by the overlap (--ev-lift, stage px from fit()) */
+.ev-video.ev-float .ev-controls { position: absolute; left: 0; right: 0; bottom: 0;
+  background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.ev-video.ev-float .ev-stage > .ev-cap { transition: transform .3s ease; transform: translateY(calc(var(--ev-lift, 0px) * -1)); }
+.ev-video.ev-float.ev-idle .ev-stage > .ev-cap { transform: none; }
 /* a portrait phone keeps captions under the stage at readable size; the block sits mid-screen */
 .ev-video.ev-full.portrait > .ev-viewport { margin-top: auto; }
 .ev-video.ev-full.portrait .ev-cap-out { flex: none; min-height: 96px; }

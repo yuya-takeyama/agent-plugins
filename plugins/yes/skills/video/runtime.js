@@ -432,6 +432,7 @@ function mountCast(stage, cast) {
     const portrait = box.width < 720 && box.height > box.width;
     root.classList.toggle('narrow', box.width < 860);
     root.classList.toggle('portrait', portrait);
+    root.classList.toggle('ev-float', isFull() && !portrait);
     if (portrait && cap.parentElement !== capOut) capOut.append(cap);
     if (!portrait && cap.parentElement !== stage) stage.append(cap);
     // on a portrait phone the scaled stage would shrink the end screen's buttons; it sits below at real size
@@ -442,8 +443,10 @@ function mountCast(stage, cast) {
     viewport.style.flex = portrait ? 'none' : '';
     viewport.style.height = portrait ? `${(720 * (box.width - pad * 2)) / 1280 + pad * 2}px` : '';
     const vp = viewport.getBoundingClientRect();
-    root.style.setProperty('--scale', String(Math.max(0.1, Math.min((vp.width - pad * 2) / 1280, (vp.height - pad * 2) / 720))));
-    tr.style.bottom = `${Math.max(0, box.bottom - controls.getBoundingClientRect().top)}px`;
+    const scale = Math.max(0.1, Math.min((vp.width - pad * 2) / 1280, (vp.height - pad * 2) / 720)), barTop = controls.getBoundingClientRect().top;
+    root.style.setProperty('--scale', String(scale));
+    root.style.setProperty('--ev-lift', `${Math.max(0, stage.getBoundingClientRect().bottom - barTop) / scale}px`);
+    tr.style.bottom = `${Math.max(0, box.bottom - barTop)}px`;
   }
   new ResizeObserver(fit).observe(root);
   desc.addEventListener('toggle', fit);

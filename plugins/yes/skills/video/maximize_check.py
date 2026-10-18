@@ -14,7 +14,7 @@ for (const o of [Element.prototype, HTMLElement.prototype])
   for (const k of ['requestFullscreen', 'webkitRequestFullscreen'])
     try { Object.defineProperty(o, k, { value: undefined, configurable: true }); } catch {}
 """
-VIEWS = {"desktop": (1280, 800), "phone-portrait": (390, 844), "phone-landscape": (844, 390)}
+VIEWS = {"desktop": (1280, 800), "desktop-16x9": (1280, 720), "phone-portrait": (390, 844), "phone-landscape": (844, 390)}
 
 
 def state(page, sel: str) -> dict:
@@ -23,7 +23,11 @@ def state(page, sel: str) -> dict:
         """(sel) => { const r = document.querySelector(sel), b = r.getBoundingClientRect();
           const fs = document.fullscreenElement || document.webkitFullscreenElement || null;
           const hit = document.elementFromPoint(8, 8), st = r.querySelector('.ev-stage').getBoundingClientRect();
-          return { full: r.classList.contains('ev-full'), pseudo: r.classList.contains('ev-pseudo'), api: fs === r,
+          const bar = r.querySelector('.ev-controls'), cap = r.querySelector('.ev-stage .ev-cap');
+          return { bar: Math.round(bar.getBoundingClientRect().top), barOpacity: +getComputedStyle(bar).opacity,
+                   vpBottom: Math.round(r.querySelector('.ev-viewport').getBoundingClientRect().bottom),
+                   cap: cap ? Math.round(cap.getBoundingClientRect().bottom) : null,
+                   full: r.classList.contains('ev-full'), pseudo: r.classList.contains('ev-pseudo'), api: fs === r,
                    x: b.x, y: b.y, w: b.width, h: b.height, vw: innerWidth, vh: innerHeight, sw: Math.round(st.width),
                    front: !!hit && r.contains(hit),
                    label: r.querySelector('.ev-fs').getAttribute('aria-label') }; }""",
@@ -64,9 +68,10 @@ def check_maximize(browser, url: str, sel: str, expect, frames: Path, label: str
     s = state(page, sel)
     expect(s["api"] and s["full"] and not s["pseudo"] and fills(s) and s["label"] == "全画面を終了",
            f"{tag}F puts the player in fullscreen over the whole viewport {s}")
-    # 16:9 at the largest size the screen allows
-    expect(s["sw"] > s0["sw"] and min(s["sw"], round(s["vh"] * 16 / 9)) - 2 <= s["sw"] <= s["vw"],
+    # 16:9 at the largest size the whole screen allows: the controls float over it instead of taking a band
+    expect(s["sw"] > s0["sw"] and abs(s["sw"] - min(s["vw"], round(s["vh"] * 16 / 9))) <= 2,
            f"{tag}the stage grows to the screen's limit ({s0['sw']} -> {s['sw']} px)")
+    expect(s["bar"] < s["vpBottom"], f"{tag}the controls overlay the picture instead of sitting under it {s}")
     expect(s["front"], f"{tag}nothing of the page shows over the maximized player")
     page.keyboard.press("Space")
     page.wait_for_timeout(400)
@@ -89,6 +94,24 @@ def check_maximize(browser, url: str, sel: str, expect, frames: Path, label: str
     expect(not s["api"] and not s["full"], f"{tag}the button again restores")
     ctx.close()
 
+    # a 16:9 screen: the stage fills it, the caption clears the visible bar, and both settle once playback idles
+    ctx, page = open_page("desktop-16x9")
+    page.keyboard.press("f")
+    page.wait_for_timeout(600)
+    s = state(page, sel)
+    expect(s["full"] and s["sw"] == s["vw"], f"{tag}on a 16:9 screen the stage fills it edge to edge {s}")
+    expect(s["cap"] is not None and s["cap"] <= s["bar"], f"{tag}the caption sits above the shown controls {s}")
+    page.screenshot(path=str(frames / f"_full-16x9{('-' + label) if label else ''}.png"))
+    page.keyboard.press("j")
+    page.keyboard.press("j")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(3300)
+    i = state(page, sel)
+    expect(i["barOpacity"] == 0, f"{tag}playing without input, the controls fade out {i}")
+    expect(i["cap"] > s["cap"], f"{tag}with the controls gone, the caption returns to its place ({s['cap']} -> {i['cap']})")
+    page.screenshot(path=str(frames / f"_full-16x9-idle{('-' + label) if label else ''}.png"))
+    ctx.close()
+
     # phones: the same, looked at upright and sideways
     for view in ("phone-portrait", "phone-landscape"):
         ctx, page = open_page(view)
@@ -96,6 +119,8 @@ def check_maximize(browser, url: str, sel: str, expect, frames: Path, label: str
         page.wait_for_timeout(600)
         s = state(page, sel)
         expect(s["full"] and fills(s), f"{tag}{view}: the button maximizes {s}")
+        if view == "phone-landscape":
+            expect(s["cap"] <= s["bar"], f"{tag}{view}: the caption sits above the shown controls {s}")
         page.screenshot(path=str(frames / f"_full-{view}{('-' + label) if label else ''}.png"))
         ctx.close()
 
