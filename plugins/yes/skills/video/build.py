@@ -326,6 +326,18 @@ def claim_errors(script: dict, lines: list[dict]) -> list[str]:
     return errs
 
 
+def assumes_errors(script: dict) -> list[str]:
+    assumes = script.get("assumes", [])
+    if not isinstance(assumes, list) or not all(isinstance(a, str) and a.strip() for a in assumes):
+        return ["assumes: must be a list of nonempty strings"]
+    return []
+
+
+def assumes_warnings(script: dict) -> list[str]:
+    return [] if script.get("assumes") else [
+        'assumes: list what the viewer must already know (the brief\'s Learner), shown under 前提 in the description']
+
+
 def claim_warnings(script: dict, lines: list[dict]) -> list[str]:
     """A line with a number and no ledger entry is a factual claim nobody tied to a source."""
     declared = {c.get("line") for c in script.get("claims", []) if isinstance(c, dict)}
@@ -787,7 +799,7 @@ def resolve_voices(cast: list[dict], lines: list[dict]) -> list[dict]:
 def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
     """Synthesize, time and caption the video; write the unit bundle to `out` and return unit.json."""
     script, readings, cast, lines = load_project(root)
-    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines):
+    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines) + assumes_errors(script):
         die("\n".join(errs))
     credit = narration_credit(script) if not cast else None
     speakers = resolve_voices(cast, lines)
@@ -829,7 +841,8 @@ def make_unit(root: Path, uid: str, out: Path, bitrate: str) -> dict:
         f'<div class="su-unit" data-unit="{html.escape(uid)}" data-kind="video"{cap_attr} hidden>\n{font_css}{scenes_html}\n{quizzes}\n</div>\n')
     for f in ("runtime.js", "runtime.css"):
         shutil.copy(SKILL_DIR / f, out / f)
-    data = {"title": script.get("title", ""), "kicker": script.get("subtitle", ""), "goals": script.get("goals", [])}
+    data = {"title": script.get("title", ""), "kicker": script.get("subtitle", ""), "goals": script.get("goals", []),
+            "assumes": script.get("assumes", [])}
     if cast:
         data.update(cast=cast_data(cast, timed), credits=credits_for(timed, cast, speakers),
                     description=script.get("description", ""))
@@ -888,13 +901,13 @@ def standalone_page(unit_dir: Path) -> str:
 
 def cmd_lint(root: Path) -> None:
     script, readings, cast, lines = load_project(root)
-    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines):
+    if errs := source_errors(script.get("sources", [])) + claim_errors(script, lines) + assumes_errors(script):
         die("\n".join(errs))
     if not cast:
         narration_credit(script)
     chars = sum(len(ln["text"]) for ln in lines)
     print(f"{len(lines)} lines, {chars} chars ≈ {chars / 300:.1f} min at 300 chars/min")
-    for w in lint(lines, readings) + claim_warnings(script, lines):
+    for w in lint(lines, readings) + claim_warnings(script, lines) + assumes_warnings(script):
         print(f"warn: {w}")
     if not cast:
         return

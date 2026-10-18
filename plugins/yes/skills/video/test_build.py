@@ -178,6 +178,15 @@ class ClaimsTest(unittest.TestCase):
         self.assertEqual([w.split(":")[0] for w in warns], ["c1-1.2"])
 
 
+class AssumesTest(unittest.TestCase):
+    def test_assumes_shape_and_presence(self):
+        self.assertEqual(build.assumes_errors({"assumes": ["SQL を書ける"]}), [])
+        self.assertEqual(len(build.assumes_errors({"assumes": "SQL"})), 1)
+        self.assertEqual(len(build.assumes_errors({"assumes": [""]})), 1)
+        self.assertEqual(len(build.assumes_warnings({})), 1)
+        self.assertEqual(build.assumes_warnings({"assumes": ["SQL を書ける"]}), [])
+
+
 class PlacementTest(unittest.TestCase):
     def line(self, lid, role, aside=False):
         return {"id": lid, "scene": lid.split(".")[0], "role": role, "aside": aside, "text": "x"}
