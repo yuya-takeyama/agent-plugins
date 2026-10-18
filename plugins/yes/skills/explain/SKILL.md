@@ -15,6 +15,9 @@ features usable without network access or persistent storage. Do not upload,
 publish, or change visibility unless requested. Review the actual rendered
 output on desktop and mobile; report unavailable checks honestly.
 
+Before writing content, plan it with the sibling `design` skill: write
+`learning-brief.md`, or reuse the one a course has already written.
+
 Establish what the reader already knows and what they should be able to explain
 or decide afterwards. Introduce the concrete problem before its terminology.
 Use a small worked example, then explain the mechanism and its trade-offs.

@@ -15,6 +15,9 @@ features usable without network access or persistent storage. Do not upload,
 publish, or change visibility unless requested. Review the actual rendered
 output on desktop and mobile; report unavailable checks honestly.
 
+Before writing content, plan it with the sibling `design` skill: write
+`learning-brief.md`, or reuse the one a course has already written.
+
 Read [the dialogue authoring guide](references/authoring.md), then the sibling
 [video skill](../video/SKILL.md). Write `script.json` and `scenes.html` and build
 them using `../video/build.py`. Read the bundled example before your first video.
