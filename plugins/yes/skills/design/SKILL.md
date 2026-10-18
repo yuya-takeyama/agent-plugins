@@ -33,8 +33,8 @@ the content ("explains X" is not an objective).
 
 1. **Learner.** Who they are, what they already know, which terms they lack.
    A guess is fine; label it. Prior knowledge decides most choices below.
-2. **Objectives.** Two to five things the learner can do afterwards, each an
-   observable act: explain why, choose between, predict what happens,
+2. **Objectives.** One to five things the learner can do afterwards per
+   piece (per lesson in a course), each an observable act: explain why, choose between, predict what happens,
    find the bug in. Pick the few that matter and drop the rest.
 3. **Misconceptions and confusable pairs.** The wrong models a half-informed
    learner holds, and the things they mix up. Each one is later used in a
@@ -48,11 +48,13 @@ the content ("explains X" is not an objective).
      model.
    - Two confusable things: put them side by side, ask what differs, then
      name the principle.
-   Introduce the names of parts before the mechanism that uses them. Ground an
+   Introduce the names of parts before the mechanism that uses them; the name
+   of the whole idea can come after the case that shows it. Ground an
    abstraction in a concrete case first, then strip the case away.
 5. **Thinking points.** Where the learner predicts, recalls, explains why, or
-   chooses, at least one per segment. Each is answered right after, in the
-   material.
+   chooses, at least one per segment: a section of an article, a run of
+   slides with one claim, a chapter of a video. Each is answered right
+   after, in the material.
 6. **Checks.** One or more items per objective, at the objective's level (a
    "choose" objective needs a scenario, not a definition). Distractors come
    from step 3. Feedback says why the right answer is right and what the
@@ -67,15 +69,20 @@ the content ("explains X" is not an objective).
   highlight or arrow on the part being discussed.
 - Words sit next to, and play at the same time as, the picture part they
   describe.
-- Cut decoration, off-topic anecdotes, and jokes that do not carry the point.
+- Cut decoration and off-topic anecdotes. Keep humor off the line that
+  carries the point, and prefer jokes that act out the topic. A format's
+  sparse in-character beats are its default, not decoration to cut.
   An analogy states where it breaks.
 - Talk to the learner in a conversational register.
 - With narration over a dense diagram, show key terms on screen rather than
   the full sentence. Full captions stay available and can be switched off.
 - A dialogue earns its place only when the learner character voices the
-  misconception or asks the deep why or how question. Agreement and banter
-  are cuts.
+  misconception or asks the deep why or how question. Empty agreement is a
+  cut.
 - Let the learner pause, replay, and jump between segments.
+- Format defaults (a video's chapter-end quiz, a dialogue's short opening
+  about the topic before the first objective) satisfy these rules. A format default never overrides the
+  brief's sequence.
 
 ## Done
 

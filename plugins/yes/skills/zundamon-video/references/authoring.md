@@ -29,8 +29,8 @@ Needs Docker running, the bundled `../../bin/yes-speak`, `uv`, and Google Chrome
 ## Roles
 
 - **四国めたん explains.** She holds the mechanism and the corrections.
-- **ずんだもん asks and misreads.** He voices the learner: the likely
-  misconception, the naive question, the paraphrase that checks
+- **ずんだもん asks and misreads.** He voices the learner: the brief's
+  misconceptions (each later corrected by めたん), the deep why or how question, the paraphrase that checks
   understanding. He is never a second lecturer.
 - Cast order is `["metan", "zundamon"]`. The first member is the explainer
   and the default speaker for lines and quiz lines; めたん stands left and
@@ -53,17 +53,22 @@ The dialogue adds these rules:
 4. **Two caption lines per utterance**, about 40 characters. Lint warns past
    that; split the sentence or give part of it to the other character.
 5. **Humour is seasoning.** One small ズレ every 30–60 s, one sentence, never
-   on the line that carries the key point. Cheap in-character gags:
+   on the line that carries the key point. The best ズレ acts out a
+   misreading of the topic. Cheap in-character gags:
    めたん's 金欠 and 中二病, ずんだもん being ないがしろにされる.
-6. **Chapters** of 2–4 minutes. Each ends with a one-line ずんだもん summary,
-   then the quiz. Quiz questions are usually めたん's (`q_who`); letting
+6. **Chapters** of 2–4 minutes. Each ends with the quiz, not a summary that
+   gives its answer away. Quiz questions are usually めたん's (`q_who`); letting
    ずんだもん answer (`a_who`) shows he got it.
 7. **No subscribe prompts, no thanks-for-watching card.** End on the last
-   quiz or a one-line ずんだもん wrap-up. If the opening skit left something
-   hanging, close it in the last scene in one exchange, ideally with the
+   quiz. If the opening skit left something hanging, close it in the last
+   scene in one exchange, ideally with the
    lesson's own words (the borrowed 千円 is 語りうる, so it gets repaid).
 
 ### The opening (つかみ)
+
+The つかみ comes before the first objective's sequence and does not replace
+it. Its misreading hook is the format's default; when the brief opens that
+objective with a worked example instead, the next scene starts the example.
 
 The genre never starts on the lesson. In 22 popular ずんだもん / ゆっくり
 解説 videos the main topic began a median 49 s in; how-to guides for these
