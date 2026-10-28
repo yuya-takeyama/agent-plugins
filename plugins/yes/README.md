@@ -52,6 +52,34 @@ select the `yuya-plugins` source and install `yes`. Start a new session and
 select the YES skill from the skills/mention picker. Codex uses the same skill
 sources and the `yes` plugin namespace.
 
+### Cursor
+
+YES ships a Cursor plugin manifest at
+[`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json) (skills in `skills/`).
+The repository catalog is
+[`.cursor-plugin/marketplace.json`](../../.cursor-plugin/marketplace.json)
+(`yuya-plugins`). Grok Bot uses this catalog and plugin manifest.
+
+To try it locally before it is listed:
+
+1. Copy the `plugins/yes` directory to `~/.cursor/plugins/local/yes` (the plugin
+   directory itself, not the repository root).
+2. Reload Cursor (`Developer: Reload Window`).
+3. Open Customize and confirm the skills `design`, `explain`, `slides`, `quiz`,
+   `video`, `zundamon-video`, and `course`.
+
+On a Teams or Enterprise plan, import this repository from Dashboard → Plugins
+& MCPs → Add Marketplace → Import from Repo:
+`https://github.com/yuya-takeyama/agent-plugins`. After the catalog is on
+`main`, submit that repository at
+[cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
+
+### Grok Bot
+
+Submit the public GitHub repository as a packaged plugin at
+[x.ai/bot/marketplace/submit-a-plugin](https://x.ai/bot/marketplace/submit-a-plugin).
+A listing can include Cursor, Grok Bot, or both, and is published only after review.
+
 ### Other agents
 
 Agent Plugins-compatible hosts can load `plugins/yes/plugin.json` and its
@@ -59,8 +87,8 @@ Agent Plugins-compatible hosts can load `plugins/yes/plugin.json` and its
 For Agent Skills-only hosts, retain the **whole plugin directory** so relative
 script dependencies resolve, and configure discovery of its skills. Copying
 only one skill folder is not supported. Standalone hosts may not add the `yes`
-namespace; check for conflicting names. Compatibility beyond Claude Code and
-Codex is format-level until listed as tested in [compatibility](../../docs/compatibility.md).
+namespace; check for conflicting names. Hosts other than Claude Code and Codex
+are format-level until listed as tested in [compatibility](../../docs/compatibility.md).
 
 ## Requirements
 

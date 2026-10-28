@@ -12,7 +12,13 @@ instructions, usage guide, and requirements.
 ## Contributing
 
 Each plugin lives under `plugins/<name>` with its own version and manifest.
-The root marketplace catalogs register the available plugins.
+These root catalogs register the available plugins:
+
+| Host | Catalog |
+| --- | --- |
+| Claude Code | [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
+| Codex | [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) |
+| Cursor and Grok Bot | [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json) |
 
 - [Compatibility](docs/compatibility.md)
 - [Development and verification](docs/verification.md)

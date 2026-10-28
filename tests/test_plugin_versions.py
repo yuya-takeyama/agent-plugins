@@ -26,7 +26,7 @@ class PluginVersionTests(unittest.TestCase):
         target.write_text(json.dumps(data), encoding='utf-8')
 
     def add_plugin(self, name, version):
-        for path in ('plugin.json', '.claude-plugin/plugin.json'):
+        for path in ('plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json'):
             self.write_json(f'plugins/{name}/{path}', {'name': name, 'version': version})
         for skill in ('design', 'explain', 'slides', 'quiz', 'video', 'zundamon-video', 'course'):
             folder = self.root / f'plugins/{name}/skills/{skill}'
@@ -37,9 +37,18 @@ class PluginVersionTests(unittest.TestCase):
             ('.agents/plugins/marketplace.json', {'source': 'local', 'path': f'./plugins/{name}'}),
         ):
             target = self.root / path
-            data = json.loads(target.read_text()) if target.exists() else {'plugins': []}
+            data = json.loads(target.read_text()) if target.exists() else {
+                'name': 'yuya-plugins', 'plugins': []}
             data['plugins'].append({'name': name, 'source': source})
             self.write_json(path, data)
+        cursor_catalog = self.root / '.cursor-plugin/marketplace.json'
+        cursor = json.loads(cursor_catalog.read_text()) if cursor_catalog.exists() else {
+            'name': 'yuya-plugins',
+            'metadata': {'pluginRoot': 'plugins'},
+            'plugins': [],
+        }
+        cursor['plugins'].append({'name': name, 'source': name, 'version': version})
+        self.write_json('.cursor-plugin/marketplace.json', cursor)
 
     def validate(self):
         return subprocess.run([sys.executable, str(self.root / 'scripts/validate.py')],
@@ -50,7 +59,7 @@ class PluginVersionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_either_manifest_changed_alone_fails(self):
-        for manifest in ('plugin.json', '.claude-plugin/plugin.json'):
+        for manifest in ('plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json'):
             with self.subTest(manifest=manifest):
                 path = f'plugins/yes/{manifest}'
                 self.write_json(path, {'name': 'yes', 'version': '1.2.4'})
@@ -91,6 +100,28 @@ class PluginVersionTests(unittest.TestCase):
         result = self.validate()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('generated/third-party media in source', result.stderr)
+
+    def test_cursor_paths_stay_inside_the_repo(self):
+        catalog = self.root / '.cursor-plugin/marketplace.json'
+        data = json.loads(catalog.read_text())
+        data['plugins'][0]['source'] = '../yes'
+        self.write_json('.cursor-plugin/marketplace.json', data)
+        result = self.validate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('relative path without ..', result.stderr)
+        data['plugins'][0]['source'] = 'yes'
+        data['plugins'][0]['version'] = '9.9.9'
+        self.write_json('.cursor-plugin/marketplace.json', data)
+        result = self.validate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('version differs from plugin.json', result.stderr)
+        self.write_json('plugins/yes/.cursor-plugin/plugin.json',
+                        {'name': 'yes', 'version': '1.2.3', 'skills': '../skills'})
+        data['plugins'][0]['version'] = '1.2.3'
+        self.write_json('.cursor-plugin/marketplace.json', data)
+        result = self.validate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('path must be relative without ..', result.stderr)
 
 
 if __name__ == '__main__':
