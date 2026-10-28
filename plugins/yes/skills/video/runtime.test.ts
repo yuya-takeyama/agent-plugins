@@ -408,7 +408,7 @@ describe('key help', () => {
     key('?');
     expect(helpPop(root).hidden).toBe(false);
     expect([...helpPop(root).querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(
-      ['Space / K', '← / →', 'Shift + ← / →', 'J / L', 'C', 'T', '< / >', 'F', 'Esc', '?']);
+      ['Space / K', '← / →', 'Shift + ← / →', 'J / L', '↑ / ↓', 'M', 'C', 'T', '< / >', 'F', 'Esc', '?']);
     key('?');
     expect(helpPop(root).hidden).toBe(true);
   });
@@ -428,6 +428,64 @@ describe('key help', () => {
     helpBtn(root).click();
     helpBtn(root).click();
     expect(helpPop(root).hidden).toBe(true);
+  });
+});
+
+describe('volume', () => {
+  const lines: Line[] = [{ id: 's1.0', scene: 's1', chapter: 'c1', idx: 0, text: 'a', start: 0, end: 10, cues: [] }];
+  const withPrefs = (init: Record<string, unknown> = {}) => {
+    const store = new Map(Object.entries(init));
+    const { root, unit } = mount({}, lines, { prefs: { get: (k: string) => store.get(k) ?? null, set: (k: string, v: unknown) => store.set(k, v) } });
+    unit.show('');
+    const audio = root.querySelector('audio')!, range = root.querySelector('.ev-vol-range') as HTMLInputElement;
+    const mute = root.querySelector('.ev-vol .ev-btn') as HTMLButtonElement;
+    return { root, unit, store, audio, range, mute };
+  };
+
+  it('starts from the stored volume and mute', () => {
+    const { audio, range, mute } = withPrefs({ volume: 0.3, muted: true });
+    expect(audio.volume).toBeCloseTo(0.3);
+    expect(range.value).toBe('0.3');
+    expect(audio.muted).toBe(true);
+    expect(mute.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('follows the slider and the arrow keys, and remembers the level', () => {
+    const { audio, range, store } = withPrefs();
+    expect(audio.volume).toBe(1);
+    range.value = '0.4'; range.dispatchEvent(new Event('input'));
+    expect(audio.volume).toBeCloseTo(0.4);
+    key('ArrowDown');
+    expect(audio.volume).toBeCloseTo(0.3);
+    key('ArrowUp'); key('ArrowUp');
+    expect(audio.volume).toBeCloseTo(0.5);
+    expect(store.get('volume')).toBeCloseTo(0.5);
+  });
+
+  it('mutes on M and keeps the level to return to', () => {
+    const { audio, mute, store } = withPrefs({ volume: 0.6 });
+    key('m');
+    expect(audio.muted).toBe(true);
+    expect(store.get('muted')).toBe(true);
+    expect(mute.getAttribute('aria-label')).toBe('ミュート解除 (M)');
+    mute.click();
+    expect(audio.muted).toBe(false);
+    expect(audio.volume).toBeCloseTo(0.6);
+  });
+
+  it('treats a slider at zero as muted and unmutes to an audible level', () => {
+    const { audio, range, mute } = withPrefs();
+    range.value = '0'; range.dispatchEvent(new Event('input'));
+    expect(audio.muted).toBe(true);
+    mute.click();
+    expect(audio.muted).toBe(false);
+    expect(audio.volume).toBeCloseTo(0.5);
+  });
+
+  it('picks up a level another version stored when shown again', () => {
+    const { audio, unit, store } = withPrefs({ volume: 0.8 });
+    unit.hide(); store.set('volume', 0.2); store.set('muted', false); unit.show('');
+    expect(audio.volume).toBeCloseTo(0.2);
   });
 });
 

@@ -123,6 +123,10 @@
 .ev-btn[aria-pressed="true"] { color: var(--accent); }
 .ev-btn svg { display: block; }
 .ev-speed { font-variant-numeric: tabular-nums; }
+.ev-vol { display: flex; align-items: center; flex: none; }
+.ev-vol-range { width: 72px; height: 28px; margin: 0 4px 0 0; accent-color: var(--accent); cursor: pointer; background: transparent; }
+.ev-vol-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.ev-video.narrow .ev-vol-range { display: none; }
 .ev-video.narrow .ev-help { display: none; }
 .ev-time { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .ev-video.narrow .ev-time { display: none; }
