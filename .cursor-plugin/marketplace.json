@@ -1,0 +1,21 @@
+{
+  "name": "yuya-plugins",
+  "owner": {
+    "name": "Yuya Takeyama"
+  },
+  "metadata": {
+    "description": "Portable plugins by Yuya Takeyama",
+    "pluginRoot": "plugins"
+  },
+  "plugins": [
+    {
+      "name": "yes",
+      "source": "yes",
+      "description": "Yuya’s Explainer Skills: portable HTML explanations, slides, quizzes, narrated videos and courses.",
+      "version": "0.8.0",
+      "license": "MIT",
+      "repository": "https://github.com/yuya-takeyama/agent-plugins",
+      "keywords": ["education", "html", "slides", "video", "voicevox", "zundamon"]
+    }
+  ]
+}

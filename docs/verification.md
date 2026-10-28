@@ -1,10 +1,13 @@
 # Verification
 
-Claude Code and Codex use matching versions for each plugin. Update
-`plugins/<name>/plugin.json` and `plugins/<name>/.claude-plugin/plugin.json`
-together. `scripts/validate.py` rejects mismatches for every catalog entry;
-CI runs it before installing dependencies. Different plugins may have different
-versions. Regression tests exercise the validator with mismatched manifests.
+Claude Code, Codex, and Cursor / Grok Bot use matching versions for each plugin.
+Update `plugins/<name>/plugin.json`, `plugins/<name>/.claude-plugin/plugin.json`,
+and `plugins/<name>/.cursor-plugin/plugin.json` together, and keep a Cursor
+marketplace `version` equal to that same value. `scripts/validate.py` rejects
+mismatches, non-relative Cursor paths, and `..` in plugin sources for every
+catalog entry. CI runs it before installing dependencies. Different plugins may
+have different versions. Regression tests exercise the validator with
+mismatched manifests.
 
 Run these commands from the repository root for metadata, Python and JavaScript checks:
 
