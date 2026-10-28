@@ -29,7 +29,11 @@ const ICONS = {
   help: 'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.5v.4M12 17h.01',
   maximize: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
   restore: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5',
+  volume: 'M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13',
+  volumeOff: 'M11 5 6 9H3v6h3l5 4zM16 9l5 6M21 9l-5 6',
 };
+// iOS keeps media volume at the hardware buttons: assigning it is a no-op there, so only mute is offered
+const CAN_SET_VOLUME = (() => { try { const a = new Audio(); a.volume = 0.5; return a.volume === 0.5; } catch { return false; } })();
 const setIcon = (b, name) => { b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
   + `<path d="${ICONS[name]}"/></svg>`; };
 const lastStartAtOrBefore = (arr, x) => { let lo = 0, hi = arr.length - 1, ans = -1;
@@ -176,15 +180,18 @@ function mountCast(stage, cast) {
   chapters.forEach((c, i) => { if (!i) return; const t = el('div', 'ev-seek-tick'); t.style.left = `${(c.start / TL.duration) * 100}%`; seekBar.append(t); });
   const ccBtn = btn('captions', '字幕 (C)'), speedBtn = btn('', '再生速度 (< >)'), trBtn = btn('toc', '文字起こし (T)');
   speedBtn.classList.add('ev-speed');
+  const vol = el('div', 'ev-vol'), muteBtn = btn('volume', 'ミュート (M)'), volRange = el('input', 'ev-vol-range');
+  Object.assign(volRange, { type: 'range', min: '0', max: '1', step: '0.05' }); volRange.setAttribute('aria-label', '音量 (↑ ↓)');
+  vol.append(muteBtn); if (CAN_SET_VOLUME) vol.append(volRange);
   const helpBtn = btn('help', 'キー操作 (?)'); helpBtn.classList.add('ev-help');
   const fsBtn = btn('maximize', '全画面 (F)'); fsBtn.classList.add('ev-fs'); fsBtn.setAttribute('aria-label', '全画面');
   // the key help hangs above the bar inside the player, so it shows in fullscreen too
   const help = el('div', 'ev-pop'); help.hidden = true; help.setAttribute('role', 'dialog');
   const keys = el('div', 'ev-keys');
   for (const [k, v] of [['Space / K', '再生 / 一時停止'], ['← / →', '前 / 次の文'], ['Shift + ← / →', '前 / 次のチャプター'], ['J / L', '5 秒戻る / 進む'],
-    ['C', '字幕 オン / オフ'], ['T', '文字起こし'], ['< / >', '再生速度'], ['F', '全画面 / 終了'], ['Esc', '閉じる / 全画面を終了'], ['?', 'キー操作']]) keys.append(el('kbd', null, k), el('span', null, v));
+    ['↑ / ↓', '音量'], ['M', 'ミュート / 解除'], ['C', '字幕 オン / オフ'], ['T', '文字起こし'], ['< / >', '再生速度'], ['F', '全画面 / 終了'], ['Esc', '閉じる / 全画面を終了'], ['?', 'キー操作']]) keys.append(el('kbd', null, k), el('span', null, v));
   help.append(el('h4', null, 'キー操作'), keys);
-  controls.append(playBtn, time, seekBar, ccBtn, speedBtn, trBtn, helpBtn, fsBtn, help);
+  controls.append(playBtn, vol, time, seekBar, ccBtn, speedBtn, trBtn, helpBtn, fsBtn, help);
   const tr = el('aside', 'ev-tr'), trButtons = [];
   chapters.forEach((c, i) => {
     tr.append(el('h2', null, `${i + 1}. ${c.title}`));
@@ -385,6 +392,20 @@ function mountCast(stage, cast) {
   const setSpeed = (i) => { speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, i)); audio.playbackRate = SPEEDS[speedIdx]; speedBtn.textContent = `${SPEEDS[speedIdx]}×`; host.prefs.set('speed', SPEEDS[speedIdx]); };
   setSpeed(speedIdx);
   speedBtn.addEventListener('click', () => setSpeed((speedIdx + 1) % SPEEDS.length));
+  const storedVolume = () => { const v = host.prefs.get('volume'); return typeof v === 'number' && v >= 0 && v <= 1 ? v : null; };
+  function setVolume(v, muted) {
+    if (CAN_SET_VOLUME) { audio.volume = Math.round(clamp01(v) * 20) / 20; volRange.value = String(audio.volume); host.prefs.set('volume', audio.volume); }
+    // dragging the slider to 0 reads as muted; raising it again unmutes
+    audio.muted = muted || (CAN_SET_VOLUME && audio.volume === 0);
+    host.prefs.set('muted', audio.muted);
+    vol.style.setProperty('--v', String(audio.muted ? 0 : audio.volume));
+    setIcon(muteBtn, audio.muted ? 'volumeOff' : 'volume'); muteBtn.setAttribute('aria-pressed', String(audio.muted));
+    const label = audio.muted ? 'ミュート解除 (M)' : 'ミュート (M)'; muteBtn.setAttribute('aria-label', label); muteBtn.title = label;
+  }
+  setVolume(storedVolume() ?? 1, host.prefs.get('muted') === true);
+  // unmuting at 0 would stay silent, so it comes back at an audible level
+  muteBtn.addEventListener('click', () => setVolume(audio.muted && audio.volume === 0 ? 0.5 : audio.volume, !audio.muted));
+  volRange.addEventListener('input', () => setVolume(+volRange.value, false));
   // ---------- maximize: the Fullscreen API on the player, else the page's viewport (position: fixed) ----------
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
   const isFull = () => root.classList.contains('ev-full');
@@ -448,6 +469,10 @@ function mountCast(stage, cast) {
     else if (k === 't') toggleTr();
     else if (k === '>' || k === '.') setSpeed(speedIdx + 1);
     else if (k === '<' || k === ',') setSpeed(speedIdx - 1);
+    else if (k === 'm' || k === 'M') muteBtn.click();
+    else if ((k === 'ArrowUp' || k === 'ArrowDown') && CAN_SET_VOLUME) {
+      e.preventDefault(); setVolume((audio.muted ? 0 : audio.volume) + (k === 'ArrowUp' ? 0.1 : -0.1), false);
+    }
   });
   // A pointer interaction with controls or the transcript also cancels navigation.
   root.addEventListener('pointerdown', () => { if (active) cancelAuto(); }, { capture: true });
@@ -502,6 +527,8 @@ function mountCast(stage, cast) {
       // another version of this unit may have changed speed or captions since; only a stored value overrides
       const sp = SPEEDS.indexOf(+host.prefs.get('speed'));
       if (sp >= 0 && sp !== speedIdx) setSpeed(sp);
+      const v = storedVolume(), mu = host.prefs.get('muted');
+      if ((v != null && CAN_SET_VOLUME && v !== audio.volume) || (typeof mu === 'boolean' && mu !== audio.muted)) setVolume(v ?? audio.volume, mu === true);
       const cc = host.prefs.get('cc');
       if (typeof cc === 'boolean' && cc === root.classList.contains('nocap')) setCC(cc);
       const a = /^at=(\d+)\.(\d+)\.(\d+)$/.exec(rest || '');
