@@ -541,5 +541,49 @@ class WbrTest(unittest.TestCase):
         self.assertEqual(build.wbr("<b>"), "&lt;b&gt;")
 
 
+
+GOLDEN = HERE / "testdata" / "golden.json"
+GOLDEN_PROJECTS = {
+    "video-example": HERE / "example",
+    "zundamon-example": HERE.parent / "zundamon-video" / "example",
+    "yes-intro": HERE.parents[3] / "docs" / "examples" / "yes-intro",
+}
+
+
+def golden_snapshot(project: Path, tmp: Path) -> dict:
+    """What the build hears and times for a project: spoken text, voice, timeline, mouth shapes and the
+    assembled narration's SHA-256, with the deterministic testdata/fake_tts.py as the engine."""
+    script, readings, cast, lines = build.load_project(project)
+    build.resolve_voices(cast, lines)
+    speed = float(script.get("speed", 1.0))
+    wavs = build.synth(lines, readings, tmp / "cache", speed)
+    timed = build.assemble(lines, wavs, tmp / "raw.wav")
+    keys = ("id", "who", "style_id", "pause", "start", "end", "mouth")
+    return {
+        "speed": speed,
+        "lines": [{"spoken": build.reading_of(ln, readings), **{k: ln[k] for k in keys if k in ln}} for ln in timed],
+        "wav_sha256": hashlib.sha256((tmp / "raw.wav").read_bytes()).hexdigest(),
+    }
+
+
+class GoldenTest(unittest.TestCase):
+    """The narration the examples produce is pinned: moving reading or synthesis code must not change
+    a single spoken character, pause, timestamp or audio sample. YES_GOLDEN_UPDATE=1 rewrites the pin."""
+
+    def test_examples_sound_and_time_as_pinned(self):
+        fake = f"{sys.executable} {HERE / 'testdata' / 'fake_tts.py'}"
+        got = {}
+        with patch.dict(os.environ, {"YES_TTS_CMD": fake, "YES_TTS_ENGINE": "voicevox"}):
+            for name, project in GOLDEN_PROJECTS.items():
+                with tempfile.TemporaryDirectory() as tmp:
+                    got[name] = golden_snapshot(project, Path(tmp))
+        if os.environ.get("YES_GOLDEN_UPDATE"):
+            GOLDEN.write_text(json.dumps(got, ensure_ascii=False, indent=1) + "\n")
+        want = json.loads(GOLDEN.read_text())
+        for name in GOLDEN_PROJECTS:
+            with self.subTest(project=name):
+                self.assertEqual(got[name]["lines"], want[name]["lines"])
+                self.assertEqual(got[name]["wav_sha256"], want[name]["wav_sha256"])
+
 if __name__ == "__main__":
     unittest.main()
