@@ -201,8 +201,10 @@ describe its voice or artwork assets as MIT-licensed or freely reusable.
    for scenes with `data-out`. Read every PNG, including a mobile view:
    content hidden behind a character, overflow past the board, a caption
    over a diagram, tofu (□), a build that never appears, the wrong face.
-4. Listen to lines with readings, numbers or a non-normal style (`yes-speak
-   'text' --speaker 四国めたん/ツンツン`). Fix readings in `readings.json`;
-   only that line is re-synthesized.
+4. Read every line of `out/spoken.md`, then listen to the lines it marks and
+   those with readings, numbers or a non-normal style (`yes-speak
+   'text' --speaker 四国めたん/ツンツン`). Fix readings in `readings.json`
+   (rules: `../narration/references/reading.md`); only that line is
+   re-synthesized.
 5. Read `out/transcript.md` alone. Does the argument stand without the
    screen, and does each speaker sound like themselves?

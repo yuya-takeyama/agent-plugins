@@ -51,8 +51,8 @@ def usage_notice(voices: list[dict], art: list[dict] | None = None, pinned: bool
     return {"text": REUSE_NOTICE, "links": links}
 
 
-def audio_notice(speaker: dict) -> str:
-    notice = usage_notice([speaker])
+def audio_notice(speaker: dict, pinned: bool = True) -> str:
+    notice = usage_notice([speaker], pinned=pinned)
     lines = [speaker["credit"], "", notice["text"], ""]
     for link in notice["links"]:
         lines += [f"{link['title']}: {link['url']}", link.get("note", "")]

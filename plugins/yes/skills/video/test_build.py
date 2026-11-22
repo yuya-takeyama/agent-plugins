@@ -64,7 +64,8 @@ def setUpModule():
     tts = patch.dict(os.environ)
     tts.start()
     unittest.addModuleCleanup(tts.stop)
-    for key in ("YES_TTS_CMD", "EV_TTS_CMD", "YES_TTS_FILES", "YES_TTS_ENGINE", "YES_TTS_SPEAKERS"):
+    for key in ("YES_TTS_CMD", "EV_TTS_CMD", "YES_TTS_FILES", "YES_TTS_ENGINE", "YES_TTS_SPEAKERS",
+                "YES_VOICEVOX_URL", "YES_VOICEVOX_API"):
         os.environ.pop(key, None)
 
 
@@ -276,9 +277,9 @@ class VoiceTest(unittest.TestCase):
 
     def test_cache_key(self):
         old = hashlib.sha1(("yes-voicevox-0.25.2|" + os.environ["EV_TTS_CMD"] + "|1.0|こんにちは").encode()).hexdigest()[:16]
-        self.assertEqual(build.cache_key("こんにちは", 1.0, None), old)
-        self.assertEqual(build.cache_key("こんにちは", 1.0, 3), hashlib.sha1(("yes-voicevox-0.25.2|" + os.environ["EV_TTS_CMD"] + "|3|1.0|こんにちは").encode()).hexdigest()[:16])
-        self.assertNotEqual(build.cache_key("こんにちは", 1.0, 3), build.cache_key("こんにちは", 1.0, 2))
+        self.assertEqual(build.voices.cache_key("こんにちは", 1.0, None), old)
+        self.assertEqual(build.voices.cache_key("こんにちは", 1.0, 3), hashlib.sha1(("yes-voicevox-0.25.2|" + os.environ["EV_TTS_CMD"] + "|3|1.0|こんにちは").encode()).hexdigest()[:16])
+        self.assertNotEqual(build.voices.cache_key("こんにちは", 1.0, 3), build.voices.cache_key("こんにちは", 1.0, 2))
 
     def test_synth_without_cast_passes_no_speaker(self):
         lines = [{"id": "a.0", "text": "あ"}]
@@ -307,7 +308,7 @@ class VoiceTest(unittest.TestCase):
                 wav.writeframes(b"\0\0" * 2400)
             return subprocess.CompletedProcess(cmd, 0, "", "")
 
-        with patch.object(build.subprocess, "run", side_effect=fake_run):
+        with patch.object(build.voices.subprocess, "run", side_effect=fake_run):
             with cf.ThreadPoolExecutor(max_workers=2) as pool:
                 paths = list(pool.map(lambda _: build.synth(lines, {}, cache, 1.0)["a.0"], range(2)))
         self.assertEqual(len(set(outputs)), 2)
@@ -365,27 +366,28 @@ class BackendTest(unittest.TestCase):
     """Which speech source is used, and whether VOICEVOX rules apply to it."""
 
     def env(self, **kw):
-        base = {k: "" for k in ("YES_TTS_CMD", "EV_TTS_CMD", "YES_TTS_FILES", "YES_TTS_ENGINE", "YES_TTS_SPEAKERS")}
+        base = {k: "" for k in ("YES_TTS_CMD", "EV_TTS_CMD", "YES_TTS_FILES", "YES_TTS_ENGINE", "YES_TTS_SPEAKERS",
+                                       "YES_VOICEVOX_URL", "YES_VOICEVOX_API")}
         return patch.dict(os.environ, {**base, **kw})
 
     def test_default_is_the_bundled_voicevox(self):
         with self.env():
-            b = build.backend()
+            b = build.voices.backend()
         self.assertEqual((b["kind"], b["engine"]), ("bundled", "voicevox"))
 
     def test_a_command_is_voicevox_unless_declared_other(self):
         with self.env(EV_TTS_CMD="tts"):
-            self.assertEqual(build.backend()["engine"], "voicevox")
+            self.assertEqual(build.voices.backend()["engine"], "voicevox")
         with self.env(YES_TTS_CMD="zundaspeak"):
-            self.assertEqual((build.backend()["kind"], build.backend()["engine"]), ("cmd", "voicevox"))
+            self.assertEqual((build.voices.backend()["kind"], build.voices.backend()["engine"]), ("cmd", "voicevox"))
         with self.env(YES_TTS_CMD="other-tts", YES_TTS_ENGINE="other"):
-            self.assertEqual(build.backend()["engine"], "other")
+            self.assertEqual(build.voices.backend()["engine"], "other")
 
     def test_invalid_combinations_stop(self):
         for kw in ({"YES_TTS_ENGINE": "nope"}, {"YES_TTS_FILES": "1"}, {"YES_TTS_FILES": "1", "YES_TTS_CMD": "x", "YES_TTS_ENGINE": "other"},
                    {"YES_TTS_ENGINE": "other"}):
             with self.env(**kw), self.assertRaises(SystemExit):
-                build.backend()
+                build.voices.backend()
 
     def test_voicevox_rules_follow_the_engine_not_the_command(self):
         guest = {"cast": [{"id": "guest", "speaker": "春日部つむぎ"}]}
@@ -407,11 +409,11 @@ class BackendTest(unittest.TestCase):
 
     def test_cache_identity_differs_per_backend(self):
         with self.env():
-            bundled = build.cache_key("あ", 1.0, 3)
+            bundled = build.voices.cache_key("あ", 1.0, 3)
         with self.env(YES_TTS_CMD="zundaspeak", YES_TTS_ENGINE="voicevox"):
-            cmd = build.cache_key("あ", 1.0, 3)
+            cmd = build.voices.cache_key("あ", 1.0, 3)
         with self.env(YES_TTS_FILES="1", YES_TTS_ENGINE="voicevox"):
-            files = build.cache_key("あ", 1.0, 3)
+            files = build.voices.cache_key("あ", 1.0, 3)
         self.assertEqual(len({bundled, cmd, files}), 3)
 
 
@@ -451,7 +453,7 @@ class VoicevoxCommandTest(unittest.TestCase):
             os.execv({json.dumps(str(self.tmp / "fake-tts"))}, sys.argv)
         """))
         flaky.chmod(0o755)
-        with patch.dict(os.environ, {"YES_TTS_CMD": str(flaky)}), patch.object(build.time, "sleep") as sleep:
+        with patch.dict(os.environ, {"YES_TTS_CMD": str(flaky)}), patch.object(build.voices.time, "sleep") as sleep:
             styles = build.style_ids(build.list_speakers())
         self.assertEqual(styles[("ずんだもん", "ノーマル")], 3)
         self.assertEqual([c.args[0] for c in sleep.call_args_list], [1, 2])
@@ -460,7 +462,7 @@ class VoicevoxCommandTest(unittest.TestCase):
         broken = self.tmp / "broken-tts"
         broken.write_text(f"#!{sys.executable}\nimport sys\nsys.exit('unknown character')\n")
         broken.chmod(0o755)
-        with patch.dict(os.environ, {"YES_TTS_CMD": str(broken)}), patch.object(build.time, "sleep") as sleep, \
+        with patch.dict(os.environ, {"YES_TTS_CMD": str(broken)}), patch.object(build.voices.time, "sleep") as sleep, \
                 self.assertRaises(RuntimeError):
             build.list_speakers()
         sleep.assert_not_called()
@@ -480,7 +482,7 @@ class FilesBackendTest(unittest.TestCase):
         self.patch = patch.dict(os.environ, {"YES_TTS_FILES": "1", "YES_TTS_ENGINE": "voicevox", "YES_TTS_CMD": "", "EV_TTS_CMD": "",
                                              "YES_TTS_SPEAKERS": str(self.speakers)})
         self.patch.start()
-        self.cache = patch.object(build, "TTS_CACHE", self.tmp / "cache")
+        self.cache = patch.object(build.voices, "TTS_CACHE", self.tmp / "cache")
         self.cache.start()
 
     def tearDown(self):
@@ -496,11 +498,11 @@ class FilesBackendTest(unittest.TestCase):
         _, readings, _, lines = build.load_project(self.project)
         build.resolve_voices([], lines)
         with self.assertRaises(SystemExit):
-            build.synth(lines, readings, build.TTS_CACHE, 1.0)
+            build.synth(lines, readings, build.voices.TTS_CACHE, 1.0)
         for item in plan["items"]:
             with wave.open(item["file"], "wb") as w:
                 w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(b"\0\0" * 2400)
-        wavs = build.synth(lines, readings, build.TTS_CACHE, 1.0)
+        wavs = build.synth(lines, readings, build.voices.TTS_CACHE, 1.0)
         self.assertEqual(len(wavs), 2)
         build.cmd_tts_plan(self.project)
         self.assertEqual(json.loads((self.project / "out" / "tts-plan.json").read_text())["items"], [])
@@ -540,6 +542,50 @@ class WbrTest(unittest.TestCase):
                          "じゃあ、<wbr>説明は<wbr>全部ずんだもん動画に<wbr>するのだ！")
         self.assertEqual(build.wbr("<b>"), "&lt;b&gt;")
 
+
+
+GOLDEN = HERE / "testdata" / "golden.json"
+GOLDEN_PROJECTS = {
+    "video-example": HERE / "example",
+    "zundamon-example": HERE.parent / "zundamon-video" / "example",
+    "yes-intro": HERE.parents[3] / "docs" / "examples" / "yes-intro",
+}
+
+
+def golden_snapshot(project: Path, tmp: Path) -> dict:
+    """What the build hears and times for a project: spoken text, voice, timeline, mouth shapes and the
+    assembled narration's SHA-256, with the deterministic ../narration/testdata/fake_tts.py as the engine."""
+    script, readings, cast, lines = build.load_project(project)
+    build.resolve_voices(cast, lines)
+    speed = float(script.get("speed", 1.0))
+    wavs = build.synth(lines, readings, tmp / "cache", speed)
+    timed = build.assemble(lines, wavs, tmp / "raw.wav")
+    keys = ("id", "who", "style_id", "pause", "start", "end", "mouth")
+    return {
+        "speed": speed,
+        "lines": [{"spoken": build.reading_of(ln, readings), **{k: ln[k] for k in keys if k in ln}} for ln in timed],
+        "wav_sha256": hashlib.sha256((tmp / "raw.wav").read_bytes()).hexdigest(),
+    }
+
+
+class GoldenTest(unittest.TestCase):
+    """The narration the examples produce is pinned: moving reading or synthesis code must not change
+    a single spoken character, pause, timestamp or audio sample. YES_GOLDEN_UPDATE=1 rewrites the pin."""
+
+    def test_examples_sound_and_time_as_pinned(self):
+        fake = f"{sys.executable} {HERE.parent / 'narration' / 'testdata' / 'fake_tts.py'}"
+        got = {}
+        with patch.dict(os.environ, {"YES_TTS_CMD": fake, "YES_TTS_ENGINE": "voicevox"}):
+            for name, project in GOLDEN_PROJECTS.items():
+                with tempfile.TemporaryDirectory() as tmp:
+                    got[name] = golden_snapshot(project, Path(tmp))
+        if os.environ.get("YES_GOLDEN_UPDATE"):
+            GOLDEN.write_text(json.dumps(got, ensure_ascii=False, indent=1) + "\n")
+        want = json.loads(GOLDEN.read_text())
+        for name in GOLDEN_PROJECTS:
+            with self.subTest(project=name):
+                self.assertEqual(got[name]["lines"], want[name]["lines"])
+                self.assertEqual(got[name]["wav_sha256"], want[name]["wav_sha256"])
 
 if __name__ == "__main__":
     unittest.main()

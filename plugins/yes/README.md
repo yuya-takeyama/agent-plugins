@@ -9,6 +9,7 @@
 | video | Narrated HTML player with synchronized captions |
 | zundamon-video | Japanese dialogue with Zundamon and Metan |
 | course | Lessons combining video, slides, and quizzes |
+| narration | VOICEVOX narration from a script: readings, lint, cached synthesis, checks, podcasts (m4a/mp3) |
 
 The default output is one self-contained HTML file. Builders can optionally
 separate embedded media into an HTML + assets bundle. Publication is always a
@@ -38,7 +39,7 @@ The demo's voice and artwork retain their own
 ```
 
 Use `/yes:design`, `/yes:explain`, `/yes:slides`, `/yes:quiz`, `/yes:video`,
-`/yes:zundamon-video`, or `/yes:course`. Plugin metadata provides the namespace;
+`/yes:zundamon-video`, `/yes:course`, or `/yes:narration`. Plugin metadata provides the namespace;
 individual skills retain short names.
 
 ### Codex
@@ -66,7 +67,7 @@ To try it locally before it is listed:
    directory itself, not the repository root).
 2. Reload Cursor (`Developer: Reload Window`).
 3. Open Customize and confirm the skills `design`, `explain`, `slides`, `quiz`,
-   `video`, `zundamon-video`, and `course`.
+   `video`, `zundamon-video`, `course`, and `narration`.
 
 On a Teams or Enterprise plan, import this repository from Dashboard → Plugins
 & MCPs → Add Marketplace → Import from Repo:
@@ -93,8 +94,9 @@ are format-level until listed as tested in [compatibility](../../docs/compatibil
 ## Requirements
 
 - Python 3.11+ and uv for builders; Node 22+ for development tests.
-- Docker installed and running for speech synthesis. CPU mode works on Linux
-  amd64 and arm64; macOS uses a Linux Docker VM (e.g. Docker Desktop).
+- Docker installed and running for speech synthesis, unless another engine is
+  set (see below). CPU mode works on Linux amd64 and arm64; macOS uses a Linux
+  Docker VM (e.g. Docker Desktop).
 - Google Chrome for screenshots, or Playwright Chromium with
   `YES_BROWSER_CHANNEL=''` after installing its browser runtime.
 - First-time package/image downloads require network access. Generated single
@@ -174,6 +176,8 @@ machine, a hosted engine, an agent's speech tool), set:
 
 | Variable | Meaning |
 | --- | --- |
+| `YES_VOICEVOX_URL` | Base URL of another VOICEVOX engine; `yes-speak` uses it instead of starting Docker. |
+| `YES_VOICEVOX_API=jobs` | That URL is a synthesis API with `POST /jobs` (a whole script per request) and `POST /synthesize`. |
 | `YES_TTS_CMD` | A command with the `yes-speak` flags and WAV contract (`EV_TTS_CMD` is an alias). |
 | `YES_TTS_FILES=1` | No command. `build.py tts-plan <project>` lists each sentence and the WAV to write; `build` reads them. |
 | `YES_TTS_ENGINE` | `voicevox` or `other`: what the command or files produce. A command defaults to `voicevox`; files must say. |
@@ -183,7 +187,7 @@ With `YES_TTS_ENGINE=voicevox`, YES enforces the same rules as with the bundled
 engine: only ずんだもん and 四国めたん, the narrator selected by style ID, and
 the voice credits and terms in the page. Use `other` only for engines that are
 not VOICEVOX; their credit and terms come from your script. Details:
-`skills/video/references/authoring.md`.
+`skills/narration/references/engines.md`.
 
 ## Embedding in a host page
 
@@ -212,7 +216,12 @@ uv run plugins/yes/skills/quiz/build.py build plugins/yes/skills/quiz/example/qu
 uv run plugins/yes/skills/video/build.py build plugins/yes/skills/video/example
 uv run plugins/yes/skills/video/build.py build plugins/yes/skills/zundamon-video/example --format bundle
 uv run plugins/yes/skills/video/build.py shoot plugins/yes/skills/video/example
+uv run plugins/yes/skills/narration/narrate.py build plugins/yes/skills/narration/example/podcast
 ```
+
+The narration example writes `out/cache-talk.m4a` (chapters, −16 LUFS),
+`out/narration.json` and `out/spoken.md`, a list of what each line says, to
+read through before publishing.
 
 Single output: `out/video.html` or `out/quiz.html`. Bundle output:
 `out/video-bundle/index.html` with relative `assets/`. Serve bundles using any

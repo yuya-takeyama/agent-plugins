@@ -17,6 +17,7 @@ npm test
 python3 -m unittest discover -s tests -v
 python3 scripts/validate.py
 uv run plugins/yes/skills/video/test_build.py
+uv run plugins/yes/skills/narration/test_narration.py
 claude plugin validate .
 ```
 
@@ -48,6 +49,15 @@ For Linux CI without Chrome:
 uv run --with playwright playwright install --with-deps chromium
 YES_BROWSER_CHANNEL='' uv run tests/smoke.py
 ```
+
+`video/test_build.py` pins the three example projects' narration
+(`video/testdata/golden.json`: spoken text, voice, pauses, timestamps, mouth
+shapes and the assembled WAV's SHA-256) against a deterministic fake engine,
+so moving reading or synthesis code cannot change what a video says or when.
+Regenerate it with `YES_GOLDEN_UPDATE=1` only for an intended change, and say
+why in the commit. `narration/test_narration.py` runs the reading rules'
+shared cases (`narration/rules/cases.json`), a podcast build to m4a and mp3,
+and the jobs API adapter against a local fake server.
 
 Real engine verification is separate:
 
