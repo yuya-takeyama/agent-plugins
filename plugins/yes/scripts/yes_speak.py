@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""VOICEVOX speech synthesis using a reusable, loopback-only Docker container."""
+"""VOICEVOX speech synthesis using a reusable, loopback-only Docker container.
+
+YES_VOICEVOX_URL points at another VOICEVOX engine instead (its base URL; no Docker is started).
+With YES_VOICEVOX_API=jobs that URL is a synthesis API with POST /synthesize, GET /speakers and
+POST /jobs, whose answers carry a signed download URL instead of the WAV.
+"""
 from __future__ import annotations
 
 import argparse
@@ -30,6 +35,23 @@ MAX_AUDIO = 64 * 1024 * 1024
 
 class SpeakError(Exception):
     pass
+
+
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+
+
+def remote() -> tuple[str, str] | None:
+    """(base URL, api) from YES_VOICEVOX_URL / YES_VOICEVOX_API, or None for the local Docker engine."""
+    url = os.environ.get("YES_VOICEVOX_URL", "").strip().rstrip("/")
+    if not url:
+        return None
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise SpeakError("YES_VOICEVOX_URL must be an http(s) base URL.")
+    api = os.environ.get("YES_VOICEVOX_API", "") or "engine"
+    if api not in ("engine", "jobs"):
+        raise SpeakError("YES_VOICEVOX_API must be engine or jobs.")
+    return url, api
 
 
 def docker(*args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -75,8 +97,9 @@ def engine_url(info: dict) -> str:
 def request(url: str, method: str = "GET", data: dict | None = None, *, audio: bool = False, timeout: float = 120):
     body = json.dumps(data).encode() if data is not None else None
     req = urllib.request.Request(url, data=body, method=method, headers={"Content-Type": "application/json"})
-    # Local synthesis must not be sent through an environment proxy.
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    # Local synthesis must not be sent through an environment proxy; a remote engine may need one.
+    local = urllib.parse.urlsplit(url).hostname in LOOPBACK
+    opener = urllib.request.build_opener(*([urllib.request.ProxyHandler({})] if local else []))
     try:
         with opener.open(req, timeout=timeout) as response:
             limit = MAX_AUDIO if audio else 4 * 1024 * 1024
@@ -88,7 +111,7 @@ def request(url: str, method: str = "GET", data: dict | None = None, *, audio: b
         raise SpeakError(f"VOICEVOX request failed: {e}") from e
 
 
-def wait_ready(url: str, timeout: float) -> None:
+def wait_ready(url: str, timeout: float, pinned: bool = True) -> None:
     deadline = time.monotonic() + timeout
     while True:
         try:
@@ -98,12 +121,18 @@ def wait_ready(url: str, timeout: float) -> None:
                 raise SpeakError(f"VOICEVOX did not become ready; inspect `docker logs {CONTAINER}`.")
             time.sleep(0.5)
             continue
-        if version != VERSION:
+        if pinned and version != VERSION:
             raise SpeakError(f"Expected VOICEVOX {VERSION}, received {version!r}.")
         return
 
 
 def ensure_engine(timeout: float = 120) -> str:
+    if target := remote():
+        url, api = target
+        if api == "engine":
+            # another engine may run another version; terms then link the current versions
+            wait_ready(url, timeout, pinned=False)
+        return url
     info = inspect_container()
     if info is None:
         print(f"Starting {IMAGE}; Docker downloads the image on first use.", file=sys.stderr)
@@ -128,6 +157,9 @@ def ensure_engine(timeout: float = 120) -> str:
 
 
 def stop_engine() -> None:
+    if remote():
+        print("YES_VOICEVOX_URL is set: that engine is not managed by yes-speak; nothing stopped.", file=sys.stderr)
+        return
     info = inspect_container()
     if info is not None:
         check_owned(info)
@@ -167,6 +199,15 @@ def validate_wav(data: bytes) -> None:
 
 
 def synthesize(url: str, text: str, speaker: int, speed: float) -> bytes:
+    target = remote()
+    if target and target[1] == "jobs":
+        result = request(url + "/synthesize", "POST", {"text": text, "speaker": speaker, "speedScale": speed},
+                         timeout=600)
+        if not isinstance(result, dict) or result.get("error") or not result.get("url"):
+            raise SpeakError(f"synthesis API: {result.get('error') if isinstance(result, dict) else result!r}")
+        data = request(result["url"], audio=True)
+        validate_wav(data)
+        return data
     params = urllib.parse.urlencode({"text": text, "speaker": speaker})
     query = request(url + "/audio_query?" + params, "POST")
     query.update(speedScale=speed, outputSamplingRate=24000, outputStereo=False)
@@ -247,7 +288,7 @@ def main(argv=None) -> int:
             print(f"{note} {selected['terms_url']}", file=sys.stderr)
         audio = synthesize(url, text, speaker, args.speed)
         # Write the notice first so a successful audio write has its terms alongside it.
-        save_audio(notice_path, audio_notice(selected).encode("utf-8"), args.force)
+        save_audio(notice_path, audio_notice(selected, pinned=remote() is None).encode("utf-8"), args.force)
         save_audio(args.output, audio, args.force)
         print(credit, file=sys.stderr)
         print(f"License notice: {notice_path}", file=sys.stderr)

@@ -19,7 +19,8 @@ Before writing content, plan it with the sibling `design` skill: write
 `learning-brief.md`, or reuse the one a course has already written.
 
 Read [the dialogue authoring guide](references/authoring.md), then the sibling
-[video skill](../video/SKILL.md). Write `script.json` and `scenes.html` and build
+[video skill](../video/SKILL.md). Readings, speech sources and the narration
+checks are the [narration skill](../narration/SKILL.md)'s. Write `script.json` and `scenes.html` and build
 them using `../video/build.py`. Read the bundled example before your first video.
 
 Use `"cast": ["metan", "zundamon"]` by default: めたん stands on the left,

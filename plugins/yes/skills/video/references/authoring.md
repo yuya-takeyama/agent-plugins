@@ -9,7 +9,7 @@ is HTML: no rendering step, fixes show up on the next build.
 ```
 <project>/script.json   what is said, in chapters → scenes → lines
 <project>/scenes.html   what is shown: one <section class="scene"> per scene
-<project>/readings.json optional: {"表記": "よみ"} for this video
+<project>/readings.json optional: {"表記": "よみ"} for this video, over the shared dictionary
 ```
 
 ```sh
@@ -43,8 +43,10 @@ in the script.
   Captions, scene builds, chapter bar and transcript all derive from it
   (`out/unit.json` holds it). Never estimate timing from character counts.
 - **Display text ≠ spoken text.** `text` is what captions and the transcript
-  show; `reading` (or the readings dictionaries) is what is spoken. Any ASCII
-  word not covered is a lint warning: fix it, do not ignore it.
+  show; `reading` (or `say`, or the readings dictionaries) is what is spoken.
+  Any ASCII word not covered is a lint warning: fix it, do not ignore it. The
+  rules are the narration skill's (`../narration/references/reading.md`);
+  `out/spoken.md` lists every line's spoken text after a build.
 - **Channels have separate jobs** (Mayer's redundancy principle: diagram +
   voice + the same full text on screen hurts learning):
   - voice: the logic (なぜ・だから). Name things; never 「これ」「ここ」「この図」.
@@ -74,8 +76,10 @@ in the script.
 }
 ```
 
-- A line is a string or `{text, reading?, pause?, aside?}`. Default pauses:
-  0.35 s between lines, 0.9 s after a scene, 1.4 s after a chapter.
+- A line is a string or `{text, reading?, say?, pause?, aside?}`. `reading`
+  is the whole line as spoken; `say` replaces the text and still goes
+  through the dictionary. Default pauses: 0.35 s between lines, 0.9 s after
+  a scene, 1.4 s after a chapter (the narration skill's pause table).
   `"aside": true` marks a line meant to amuse.
 - Every scene has a `"role"`: `hook`, `example`, `mechanism`, `transition`
   or `close`. Lint warns on a scene without one and on an aside in an
@@ -91,12 +95,14 @@ in the script.
 - Writing rules (lint enforces the mechanical ones):
   - です・ます, conversational. 25–40 chars per line, never over 60.
   - Numbers in digits (`16回`, `3分から6分`) read fine; letters need readings.
+    A few forms do not (`3〜5`, `1/3`, `10:30`, `3x`): lint marks them
+    `listen:`; the narration skill's reading rules give the rewrite.
   - Every 、 is a pause in speech, so a sentence with many reads haltingly.
     Join a list with と (`有料の基盤と外部の DB`), drop the 、 after a
     short subject (`Void は Vite の…`), and keep it where a listener needs
     a breath. Lint warns at three. Spaces are not pauses: the build drops
-    every space next to Japanese, so `有料の Workers` and the reading
-    `ワーカーズ フォー プラットフォームズ` both run on.
+    every space next to Japanese, so `有料の Workers` and a reading
+    `ワーカーズ フォー プラットフォームズ` both run on; write readings joined.
   - Roughly 300 chars ≈ 1 minute. A chapter is 3–6 minutes and one claim.
   - Chapter shape follows the learning brief's sequence for the chapter's
     objective (worked example first, prediction first, refutation, or
@@ -168,28 +174,10 @@ A script with `"cast"` becomes a dialogue video (authoring guide:
 
 ## Speech sources
 
-| Source | Set | VOICEVOX rules |
-|---|---|---|
-| bundled Docker engine | nothing | always |
-| a command | `YES_TTS_CMD` (alias `EV_TTS_CMD`), optional `YES_TTS_ENGINE` | unless `YES_TTS_ENGINE=other` |
-| files written by the agent | `YES_TTS_FILES=1`, `YES_TTS_ENGINE`, `YES_TTS_SPEAKERS` | when `YES_TTS_ENGINE=voicevox` |
-
-- A command takes `--text T -o FILE --force --speed S [--speaker STYLE_ID]`
-  and writes a 24000 Hz mono 16-bit WAV; `--list-speakers --json` prints
-  `[{name, styles: [{name, id, type}], credit?}]`.
-- VOICEVOX rules: only ずんだもん and 四国めたん (any talk style); a single
-  narrator is ずんだもん by its style id, never the engine's default; the
-  page credits each voice and links the engine, model and voice terms (the
-  bundled engine's pinned versions, otherwise the current terms).
-- Files: run `tts-plan`; it writes `out/tts-plan.json`
-  `{engine, format, items: [{file, text, speaker, style, style_id, speed}]}`
-  for every sentence without audio. Synthesize each `text` with that voice
-  and speed and write the WAV to `file`, then `build`. `build` never
-  synthesizes in this mode and stops while any file is missing.
-  `YES_TTS_SPEAKERS` is the engine's speaker list in the format above (for
-  VOICEVOX or a cast), so every line carries a style id.
-- The cache key includes the source, so audio from one source never stands
-  in for another.
+The bundled Docker engine by default; `YES_VOICEVOX_URL` (another engine or,
+with `YES_VOICEVOX_API=jobs`, a jobs API), `YES_TTS_CMD` or `YES_TTS_FILES`
+(with `build.py tts-plan`) replace it. Contracts, VOICEVOX rules and the cache:
+`../narration/references/engines.md`.
 
 ## scenes.html
 
@@ -240,9 +228,10 @@ optional `<style>` for video-specific CSS, then the sections:
    most crowded state; `--at start` too for scenes with `data-out`). Read
    every PNG: overflow past the content box, overlap with the caption band,
    tofu (□), clipped text, a build that never appears. Fix and repeat.
-4. Save lines with readings or numbers using `yes-speak 'text' -o line.wav`,
-   then listen to the WAV in an audio player. Wrong reading → add to
-   readings.json → rebuild (only that line is re-synthesized).
+4. Read every line of `out/spoken.md` (caption, spoken text, 👂 marks).
+   Listen to the marked lines and those with readings or numbers
+   (`yes-speak 'text' -o line.wav`). Wrong reading → add to readings.json →
+   rebuild (only that line is re-synthesized).
 5. Read the transcript (`out/transcript.md`) alone: does the argument stand
    without the screen?
 6. `check` (player e2e); it leaves `out/frames/_full-*.png`, the maximized
@@ -251,7 +240,9 @@ optional `<style>` for video-specific CSS, then the sections:
    the page scroll sideways on a phone.
 
 Outputs besides the page: `out/captions.vtt`, `out/unit.json` (timeline),
-`out/transcript.md`, `out/unit/narration.m4a` — reusable for an mp4 later.
+`out/transcript.md`, `out/narration.json` and `out/spoken.md` (every line's
+spoken text, voice, length and hash), `out/unit/narration.m4a` — reusable
+for an mp4 later.
 Single videos default to 48 kbps audio (`"bitrate"` in script.json).
 
 ## Page behavior (runtime, do not re-implement)

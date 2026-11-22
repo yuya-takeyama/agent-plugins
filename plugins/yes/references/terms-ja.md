@@ -29,8 +29,11 @@ How to decide:
    not J: the official word still hides the concept.
 4. The gloss says what the thing is or does, not a literal translation.
 
-In narrated videos the English of an E+J term is spoken in katakana through
-`reading` / readings.json, and the caption shows the English. Board labels,
+In narrated videos and narration the English of an E+J term is spoken in
+katakana through `reading` / readings.json, and the caption shows the English.
+How spoken text is made (the shared dictionary, spaces, numbers) is in the
+narration skill's [reading rules](../skills/narration/references/reading.md);
+a K-form term's katakana is also its reading there. Board labels,
 quiz questions, goals and summaries use the same form as the narration.
 
 When several writers produce one piece (a course), the orchestrator decides

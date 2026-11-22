@@ -38,24 +38,18 @@ Run `uv run <this-skill-dir>/build.py build <project-dir>`.
 Add `--format bundle` for a sibling `<name>-bundle/index.html` and assets directory;
 otherwise the output is one HTML file. `--max-bytes N` optionally enforces a host limit.
 
-Audio uses the plugin's `../../bin/yes-speak` wrapper by default. It starts and
-reuses a local Docker VOICEVOX Engine. Docker must be installed and running;
-the first build downloads the engine image. See the plugin's
-`../../README.md` for startup, voice selection, and stopping the engine.
-
-Other speech sources replace it (details in the authoring guide):
-
-- `YES_TTS_CMD` — a command with the yes-speak flags and WAV contract
-  (`EV_TTS_CMD` is an alias), e.g. a VOICEVOX engine elsewhere (a remote
-  server, a cloud function). YES applies the same voice restriction, credits
-  and terms as with the bundled engine.
-- `YES_TTS_FILES=1` with `YES_TTS_ENGINE` — no command: `build.py tts-plan`
-  lists each sentence and the WAV path to write (from an MCP speech tool,
-  another machine), and `build` reads those files.
-
-A command is treated as VOICEVOX unless `YES_TTS_ENGINE=other` declares a
-different engine; then set `"credit"` (and `usageTerms`) in script.json. Never
-declare VOICEVOX output as `other`.
+Narration (readings, script checks, speech synthesis, the audio track) is the
+sibling [`narration` skill](../narration/SKILL.md)'s; this builder calls its
+code. Follow its [reading rules](../narration/references/reading.md) when
+writing lines: spaces next to Japanese are dropped, English needs a reading,
+and some number forms need rewriting. Audio uses the plugin's
+`../../bin/yes-speak` (a local Docker VOICEVOX Engine) by default; Docker must
+be running and the first build downloads the engine image.
+`YES_VOICEVOX_URL`, `YES_TTS_CMD` or `YES_TTS_FILES` select another source
+([speech sources](../narration/references/engines.md)). A command is treated as
+VOICEVOX unless `YES_TTS_ENGINE=other` declares a different engine; then set
+`"credit"` (and `usageTerms`) in script.json. Never declare VOICEVOX output as
+`other`.
 
 After `lint` is clean, have the script reviewed by someone who did not write
 it, a fresh subagent when the host has them, against the sibling `design`
@@ -63,7 +57,8 @@ skill's rubric. Apply every fix, cutting humor outside its places, and lint
 again. Then run `build`, then `shoot`, and inspect every scene screenshot.
 `check` drives the built page (maximize, fallback) and must print only `ok`.
 The screenshot command uses installed Chrome; `YES_BROWSER_CHANNEL=''` selects
-Playwright Chromium instead. Review pronunciation and the standalone transcript.
+Playwright Chromium instead. Read every line of `out/spoken.md` (what VOICEVOX
+was asked to say), listen to the lines it marks, and read the standalone transcript.
 Keep VOICEVOX credits in the generated page.
 Read [voice and artwork conditions](../../THIRD_PARTY_NOTICES.md) before
 selecting a voice or distributing its output. Preserve the generated usage

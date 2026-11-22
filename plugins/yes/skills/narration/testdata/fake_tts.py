@@ -1,6 +1,6 @@
 """Deterministic stand-in for yes-speak: audio whose length and loudness follow the text.
 
-The golden test (test_build.py GoldenTest) runs the build against it, so the
+The video golden test and the narration tests run against it, so the
 pinned timeline and mouth shapes depend only on the build, never on an engine."""
 import json
 import math

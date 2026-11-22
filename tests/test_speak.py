@@ -187,4 +187,47 @@ class SynthesisTests(unittest.TestCase):
         engine.assert_not_called()
 
 
+class RemoteEngineTests(unittest.TestCase):
+    """YES_VOICEVOX_URL: another engine, or a jobs API, instead of the local Docker container."""
+
+    def env(self, **kw):
+        return patch.dict('os.environ', {'YES_VOICEVOX_URL': '', 'YES_VOICEVOX_API': '', **kw})
+
+    @patch.object(speak, 'docker')
+    @patch.object(speak, 'wait_ready')
+    def test_engine_url_skips_docker_and_accepts_any_version(self, ready, docker):
+        with self.env(YES_VOICEVOX_URL='http://engine.example:50021/'):
+            self.assertEqual(speak.ensure_engine(), 'http://engine.example:50021')
+            speak.stop_engine()
+        ready.assert_called_once_with('http://engine.example:50021', 120, pinned=False)
+        docker.assert_not_called()
+
+    @patch.object(speak, 'request')
+    def test_jobs_api_synthesizes_through_a_signed_url(self, request):
+        request.side_effect = [{'url': 'https://bucket.example/a.wav', 'credit': 'VOICEVOX:ずんだもん'}, wav_bytes()]
+        with self.env(YES_VOICEVOX_URL='https://api.example', YES_VOICEVOX_API='jobs'):
+            self.assertEqual(speak.ensure_engine(), 'https://api.example')
+            self.assertEqual(speak.synthesize('https://api.example', 'あ', 3, 1.1), wav_bytes())
+        first, second = request.call_args_list
+        self.assertEqual(first.args[:3], ('https://api.example/synthesize', 'POST', {'text': 'あ', 'speaker': 3, 'speedScale': 1.1}))
+        self.assertEqual(second.args, ('https://bucket.example/a.wav',))
+        self.assertTrue(second.kwargs['audio'])
+
+    @patch.object(speak, 'request', return_value={'error': 'Synthesis failed'})
+    def test_jobs_api_error_is_reported(self, request):
+        with self.env(YES_VOICEVOX_URL='https://api.example', YES_VOICEVOX_API='jobs'):
+            with self.assertRaisesRegex(speak.SpeakError, 'Synthesis failed'):
+                speak.synthesize('https://api.example', 'あ', 3, 1.0)
+
+    def test_bad_settings_are_rejected(self):
+        for kw in ({'YES_VOICEVOX_URL': 'ftp://x'}, {'YES_VOICEVOX_URL': 'https://x', 'YES_VOICEVOX_API': 'soap'}):
+            with self.env(**kw), self.assertRaises(speak.SpeakError):
+                speak.remote()
+
+    def test_remote_audio_notice_links_current_terms(self):
+        sp = {'name': 'ずんだもん', **speak.voice_policy('ずんだもん')}
+        self.assertIn('/blob/main/', speak.audio_notice(sp, pinned=False))
+        self.assertIn('0.25.2', speak.audio_notice(sp))
+
+
 if __name__=='__main__': unittest.main()
