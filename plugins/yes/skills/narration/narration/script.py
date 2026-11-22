@@ -136,7 +136,7 @@ def chapter_spans(script: dict, timed: list[dict], duration: float) -> list[dict
     chapters: list[dict] = []
     for ln in timed:
         if not chapters or chapters[-1]["id"] != ln["chapter"]:
-            ch = next(c for c in script["chapters"] if c["id"] == ln["chapter"])
+            ch = next((c for c in script["chapters"] if c["id"] == ln["chapter"]), {"id": ln["chapter"]})
             chapters.append({"id": ch["id"], "title": ch.get("title", ch["id"]), "start": ln["start"]})
     for a, b in zip(chapters, chapters[1:] + [None]):
         a["end"] = b["start"] if b else duration

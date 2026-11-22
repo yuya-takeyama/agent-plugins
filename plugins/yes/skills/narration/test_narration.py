@@ -205,6 +205,7 @@ class FakeJobsAPI(http.server.BaseHTTPRequestHandler):
     jobs: dict = {}
     posts: list = []
     fail_first_post = False
+    fail_text: str | None = None  # this sentence fails in the first job that has it
 
     def log_message(self, *a):
         pass
@@ -227,9 +228,14 @@ class FakeJobsAPI(http.server.BaseHTTPRequestHandler):
         if m := re.fullmatch(r"/jobs/(\w+)", self.path):
             items = self.jobs[m[1]]
             base = f"http://{self.headers['Host']}"
-            return self.reply(200, {"state": "done", "items": [
-                {"index": i, "state": "done", "url": f"{base}/audio/{m[1]}/{i}", "credit": "VOICEVOX:ずんだもん"}
-                for i in range(len(items))]})
+            bad = [i for i, it in enumerate(items) if it["text"] == type(self).fail_text]
+            out = [{"index": i, "state": "failed"} if i in bad else
+                   {"index": i, "state": "done", "url": f"{base}/audio/{m[1]}/{i}", "credit": "VOICEVOX:ずんだもん",
+                    "key": f"voicevox-public/voicevox-0.25.2/speaker-{items[i]['speaker']}/{i}.wav"}
+                   for i in range(len(items))]
+            if bad:
+                type(self).fail_text = None
+            return self.reply(200, {"state": "failed" if bad else "done", "items": out})
         if m := re.fullmatch(r"/audio/(\w+)/(\d+)", self.path):
             item = self.jobs[m[1]][int(m[2])]
             return self.reply(200, wav_bytes(tone(0.05 * len(item["text"]))), "audio/wav")
@@ -333,8 +339,32 @@ class ProjectTest(unittest.TestCase):
         self.assertEqual(len(items), 8)
         self.assertEqual({(i["speaker"], i["speedScale"]) for i in items}, {(2, 1.05), (3, 1.05)})
         saved = json.loads((self.project / "out" / "narration.json").read_text())
-        self.assertEqual(saved["engine"]["source"], "jobs")
+        self.assertEqual(saved["engine"], {"name": "VOICEVOX", "source": "jobs", "version": "0.25.2"})
         self.assertNotIn(url, json.dumps(saved), "narration.json never records the API address")
+
+    def test_a_failed_sentence_keeps_the_others_and_a_rerun_asks_only_for_it(self):
+        FakeJobsAPI.jobs, FakeJobsAPI.posts, FakeJobsAPI.fail_first_post = {}, [], False
+        FakeJobsAPI.fail_text = "古い結果を返してしまうのだ。"
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeJobsAPI)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        with self.env(YES_VOICEVOX_URL=url, YES_VOICEVOX_API="jobs"), patch.object(voices.time, "sleep"), \
+                patch.dict(os.environ, {"NO_PROXY": "*"}):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()) as err:
+                quiet(narrate.cmd_synth, self.project)
+            self.assertIn("1 sentences failed", err.getvalue())
+            quiet(narrate.cmd_synth, self.project)
+        self.assertEqual([len(p["items"]) for p in FakeJobsAPI.posts], [8, 1])
+
+    def test_check_and_mix_need_the_lines_audio(self):
+        (self.project / "out").mkdir()
+        (self.project / "out" / "narration.json").write_text(json.dumps({"lines": [{"id": "a", "text": "あ"}]}))
+        for cmd in (narrate.cmd_check, lambda root: narrate.cmd_mix(root, "m4a", "64k")):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()) as err:
+                cmd(self.project)
+            self.assertIn("run `narrate.py synth", err.getvalue())
 
     def test_other_voices_are_refused(self):
         script = json.loads((self.project / "script.json").read_text())

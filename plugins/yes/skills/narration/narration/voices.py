@@ -120,6 +120,7 @@ def run_tts(cmd: list[str]) -> subprocess.CompletedProcess:
 # ---------- HTTP (jobs API) ----------
 
 def http_json(url: str, data: dict | None = None, *, timeout: float = 60) -> tuple[int, dict]:
+    """(status, JSON body). A network failure is status 0 with {"error": ...}, so callers retry or stop cleanly."""
     body = json.dumps(data).encode() if data is not None else None
     req = urllib.request.Request(url, data=body, method="POST" if body else "GET",
                                  headers={"Content-Type": "application/json"})
@@ -132,11 +133,23 @@ def http_json(url: str, data: dict | None = None, *, timeout: float = 60) -> tup
         except ValueError:
             payload = {}
         return e.code, payload
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        return 0, {"error": str(e)}
+
+
+RETRY = (0, 429, 502, 503, 504)
 
 
 def http_bytes(url: str, timeout: float = 120) -> bytes:
-    with urllib.request.urlopen(url, timeout=timeout) as r:
-        return r.read()
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as r:
+                return r.read()
+        except (urllib.error.URLError, OSError) as e:
+            if attempt == 3:
+                raise RuntimeError(f"download failed: {e}") from e
+            time.sleep(2 ** attempt)
+    raise AssertionError
 
 
 def jobs_speakers(url: str) -> list[dict]:
@@ -144,7 +157,7 @@ def jobs_speakers(url: str) -> list[dict]:
         status, body = http_json(url + "/speakers")
         if status == 200 and isinstance(body, list):
             return body
-        if status not in (429, 503):
+        if status not in RETRY:
             raise RuntimeError(f"GET /speakers: HTTP {status} {body}")
         time.sleep(2 ** attempt)
     raise RuntimeError(f"GET /speakers: HTTP {status}")
@@ -167,7 +180,7 @@ def jobs_synth(url: str, todo: dict[Path, tuple[str, int | None]], speed: float,
                  for _, (s, sid) in batch]
         for attempt in range(60):
             status, job = http_json(url + "/jobs", {"items": items})
-            if status != 503:
+            if status not in RETRY:
                 break
             time.sleep(5)
         if status not in (200, 202) or "id" not in job:
@@ -176,26 +189,30 @@ def jobs_synth(url: str, todo: dict[Path, tuple[str, int | None]], speed: float,
         stop = time.monotonic() + deadline
         while True:
             status, state = http_json(f"{url}/jobs/{job['id']}")
-            if status != 200:
-                die(f"GET /jobs/{job['id'][:12]}: HTTP {status} {state.get('error', '')}")
-            if state.get("state") in ("done", "failed"):
+            if status == 200 and state.get("state") in ("done", "failed"):
                 break
+            if status not in (200, *RETRY):
+                die(f"GET /jobs/{job['id'][:12]}: HTTP {status} {state.get('error', '')}")
             if time.monotonic() > stop:
                 die(f"job {job['id'][:12]} still {state.get('state')} after {deadline:.0f} s; run again to resume it")
             time.sleep(poll)
-        failed = [batch[it["index"]][1][0] for it in state.get("items", []) if it.get("state") == "failed"]
-        if failed:
-            die(f"{len(failed)} sentences failed, e.g. {failed[0][:30]!r}; run again to retry only those")
-        for it in state["items"]:
+        failed = []
+        # keep every finished sentence, even when others failed: a rerun then asks only for the rest
+        for it in state.get("items", []):
+            text = batch[it["index"]][1][0]
+            if it.get("state") != "done" or not it.get("url"):
+                failed.append(text)
+                continue
             if m := re.search(r"voicevox-(\d+\.\d+\.\d+)", it.get("key") or ""):
                 JOBS_SEEN["version"] = m[1]
-            path = batch[it["index"]][0]
-            data = http_bytes(it["url"])
             try:
+                data = http_bytes(it["url"])
                 validate_wav(data)
             except (wave.Error, EOFError, RuntimeError) as e:
-                die(f"{batch[it['index']][1][0][:30]!r}: {e}")
-            write_atomic(path, data)
+                die(f"{text[:30]!r}: {e}")
+            write_atomic(batch[it["index"]][0], data)
+        if failed:
+            die(f"{len(failed)} sentences failed, e.g. {failed[0][:30]!r}; run again to retry only those")
 
 
 def write_atomic(path: Path, data: bytes) -> None:

@@ -73,7 +73,7 @@ def die(msg: str) -> None:
 
 def load_project(root: Path) -> tuple[dict, dict, list[dict], list[dict]]:
     script = json.loads((root / "script.json").read_text())
-    readings = rd.load_readings(root / "readings.json")
+    readings = rd.load_readings(root / "readings.json", script.get("readings"))
     cast = load_cast(script)
     KEEP_WHOLE.update(w for w in [*readings, *(m["name"] for m in cast)] if len(w) > 1)
     return script, readings, cast, flatten(script, [m["id"] for m in cast])

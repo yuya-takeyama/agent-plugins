@@ -10,6 +10,7 @@ is HTML: no rendering step, fixes show up on the next build.
 <project>/script.json   what is said, in chapters → scenes → lines
 <project>/scenes.html   what is shown: one <section class="scene"> per scene
 <project>/readings.json optional: {"表記": "よみ"} for this video, over the shared dictionary
+                        (script.json "readings" is applied over both)
 ```
 
 ```sh

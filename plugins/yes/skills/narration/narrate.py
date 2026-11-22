@@ -17,8 +17,8 @@
 <project>/script.json    chapters -> (scenes ->) lines, optional cast, pauses, readings, bgm
 <project>/readings.json  optional {"表記": "よみ"} merged over this skill's readings.json
 
-A video project (yes:video, yes:zundamon-video) is a valid project too: lint, spoken and check
-work on its script.json unchanged. Speech sources: see references/engines.md.
+A video project (yes:video, yes:zundamon-video) is a valid project too: lint and spoken work on
+its script.json unchanged (synth, check and mix as well, into its out/ beside the video's files). Speech sources: see references/engines.md.
 """
 from __future__ import annotations
 
@@ -151,7 +151,13 @@ def read_manifest(root: Path) -> dict:
     path = root / "out" / "narration.json"
     if not path.exists():
         die(f"{path} not found; run synth first")
-    return json.loads(path.read_text())
+    m = json.loads(path.read_text())
+    if not m.get("lines"):
+        die(f"{path} has no lines")
+    if any("file" not in it for it in m["lines"]):
+        # a video build's narration.json records the lines but keeps the audio in the cache
+        die(f"{path} has no audio files; run `narrate.py synth {root}` first")
+    return m
 
 
 def cmd_check(root: Path) -> int:
